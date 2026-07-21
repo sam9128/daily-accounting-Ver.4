@@ -6,5 +6,5 @@ import './styles.css';
 import './dark.css';
 import './mobile.css';
 
-registerSW({ onNeedRefresh: () => window.dispatchEvent(new Event('book-update-ready')) });
+if (import.meta.env.PROD) registerSW({ onNeedRefresh: () => window.dispatchEvent(new Event('book-update-ready')) });
 createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>);
