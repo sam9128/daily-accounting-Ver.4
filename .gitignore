@@ -6,3 +6,4 @@ dist/
 bakeup/
 .private-data/
 .test-output/
+.env.local

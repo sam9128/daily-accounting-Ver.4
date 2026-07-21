@@ -32,8 +32,18 @@ assert.deepEqual(ledger.categoryTotals, Object.assign(Object.fromEntries(categor
   存: 1000,
   轉: 100,
 }));
-assert.deepEqual(ledger.day, { values: { 食: -100, 衣: 0, 住: 0, 行: 0, 育: 0, 樂: 0, 醫: 0, 用: 0, 送: 0 }, total: -100, save: 1000, diff: 900 });
-assert.deepEqual(ledger.month, ledger.day);
-assert.deepEqual(ledger.year, { values: { 食: -100, 衣: 0, 住: -40, 行: 0, 育: 0, 樂: 0, 醫: 0, 用: 0, 送: 0 }, total: -140, save: 1000, diff: 860 });
+assert.deepEqual(ledger.day, { values: { 食: -100, 衣: 0, 住: 0, 行: 0, 育: 0, 樂: 0, 醫: 0, 用: 0, 送: 0 }, total: -100, save: 1000, diff: 900, investments: { 美金: 0, 日幣: 0, '0050': 0 }, investmentTotal: 0, transferTotal: 0 });
+assert.deepEqual(ledger.month, { ...ledger.day, transferTotal: 300 });
+assert.deepEqual(ledger.year, { values: { 食: -100, 衣: 0, 住: -40, 行: 0, 育: 0, 樂: 0, 醫: 0, 用: 0, 送: 0 }, total: -140, save: 1000, diff: 860, investments: { 美金: 0, 日幣: 0, '0050': 0 }, investmentTotal: 0, transferTotal: 100 });
+assert.deepEqual(ledger.rowDetails['synthetic-2'], { accountBalance: 1000, runningTotal: 900, delta: 1000 });
+
+const investmentLedger = calculate([
+  { id: 'investment-1', sequence: 1, date: '2026-07-21', account: '永豐金證券', category: '0050', reason: '投資測試', expense: 2000, income: 0 },
+], defaultAccounts, '2026-07-21');
+assert.deepEqual(investmentLedger.month.investments, { 美金: 0, 日幣: 0, '0050': -2000 });
+assert.equal(investmentLedger.month.investmentTotal, -2000);
+assert.equal(investmentLedger.month.total, 0);
+assert.equal(investmentLedger.month.diff, 0);
+assert.equal(investmentLedger.month.transferTotal, 0);
 
 console.log('Ledger formula validation passed with privacy-safe synthetic transactions.');

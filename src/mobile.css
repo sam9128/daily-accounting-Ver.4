@@ -16,10 +16,8 @@
     width: 100%;
     max-width: 460px;
     min-height: 100dvh;
-    padding: 6px 14px 0;
+    padding: 14px 14px 0;
   }
-
-  header { display: none; }
 
   .summary {
     display: block;
@@ -33,9 +31,11 @@
     position: relative;
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
+    align-items: center;
     width: 100%;
-    min-height: 104px;
+    height: 96px;
+    min-height: 96px;
     padding: 17px 19px;
     margin: 0 0 14px;
     border: 1px solid #303030;
@@ -44,8 +44,8 @@
   }
 
   .total-card > span {
-    grid-column: 1;
-    grid-row: 1;
+    top: 9px;
+    left: 19px;
     color: #999;
     font-size: 12px;
     letter-spacing: .08em;
@@ -53,8 +53,9 @@
 
   .total-card strong {
     grid-column: 1;
-    grid-row: 2;
-    align-self: end;
+    grid-row: 1;
+    align-self: center;
+    transform: translateY(14px);
     font-size: 32px;
     line-height: 1;
     letter-spacing: -.045em;
@@ -62,8 +63,9 @@
 
   .total-card small {
     grid-column: 2;
-    grid-row: 1 / 3;
-    align-self: end;
+    grid-row: 1;
+    align-self: center;
+    transform: translateY(14px);
     min-width: 92px;
     font-size: 11px;
     line-height: 1.65;
@@ -137,13 +139,13 @@
     box-shadow: inset 0 0 0 1px #58a6ff;
   }
 
-  .accounts > div > button span {
+  .accounts > div > button > span {
     margin-bottom: 7px;
     font-size: 12px;
   }
 
-  .accounts > div > button b { font-size: 16px; }
-  .accounts > div > button b span {
+  .accounts > div > button > b { font-size: 16px; }
+  .accounts > div > button > b > span {
     display: inline;
     margin: 0;
     color: inherit;
@@ -151,6 +153,8 @@
     overflow: visible;
   }
   .accounts > div > button b .desktop-value { display: none; }
+  .accounts > div > button b .mobile-value { display: inline; }
+
 
   .grid {
     display: block;
@@ -213,6 +217,7 @@
 
   .quick-form .expense { color: #d99a9a; }
   .quick-form .income { color: #9fc5aa; }
+  .quick-categories { display: none; }
 
   .quick-form .primary {
     grid-row: 6;
@@ -222,6 +227,18 @@
     font-size: 16px;
     background: #2f6de8;
     color: #050505;
+  }
+
+  html.keyboard-open .quick-form .primary {
+    position: fixed;
+    z-index: 80;
+    top: calc(var(--visual-offset-top, 0px) + var(--visual-height, 100dvh) - 72px);
+    right: max(34px, calc((100vw - 460px) / 2 + 34px));
+    left: max(34px, calc((100vw - 460px) / 2 + 34px));
+    width: auto;
+    min-height: 58px;
+    margin: 0;
+    box-shadow: 0 10px 30px #000b;
   }
 
   .table-wrap table { min-width: 0; }
@@ -274,14 +291,61 @@
 
   dialog { padding: 22px 18px; }
 
-  .stats-sync {
-    display: block !important;
-    min-height: 40px;
-    border: 1px solid #444;
-    border-radius: 8px;
-    background: #242424;
-    color: #ddd;
+  .stats-dialog { padding: 0 14px 20px; }
+  .stats-header {
+    height: 62px;
+    grid-template-columns: 36px minmax(0, 1fr) 42px;
+    gap: 8px;
   }
+  .stats-header h2 { display: none; }
+  .stats-close { width: 36px; height: 36px; }
+  .mode-tabs { grid-column: 2; width: 100%; justify-self: stretch; }
+  .stats-sync {
+    grid-column: 3;
+    display: block !important;
+    width: 42px;
+    min-height: 34px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #aaa;
+    font-size: 0;
+  }
+  .stats-sync::after { content: '同步'; font-size: 11px; }
+  .period-pager {
+    height: 56px;
+    grid-template-columns: 76px minmax(0, 1fr) 76px;
+  }
+  .period-pager strong { font-size: 14px; letter-spacing: .03em; }
+  .period-pager button { min-height: 34px; font-size: 11px; }
+  .stats-content {
+    height: calc(100dvh - 128px);
+    display: block;
+    overflow-y: auto;
+    padding: 20px 0 24px;
+  }
+  .investment-stats { grid-column: auto; margin-top: 14px; }
+  .stats-overview { display: block; }
+  .donut { width: min(250px, 66vw); margin: 0 auto 20px; }
+  .donut strong { font-size: 34px; }
+  .stat-summaries { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 22px; }
+  .stat-summaries article { min-height: 88px; padding: 14px; text-align: center; }
+  .stat-summaries strong { font-size: 20px; }
+  .stat-row { min-height: 52px; grid-template-columns: 5px 26px minmax(0, 1fr) 58px; gap: 11px; }
+  .stat-row b { font-size: 14px; }
+  .logs { height: calc(100dvh - 72px); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 14px; }
+  .filters .log-search { grid-column: 1 / -1; }
+  .flow-query-summary,
+  .desktop-flow-ledger,
+  .desktop-flow-hint { display: none; }
+  .mobile-flow-records { display: block; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .logs .flow-row { grid-template-columns: minmax(0, 1fr) 110px; }
+  .flow-row { min-height: 82px; padding: 12px 3px; }
+  .flow-amounts small { grid-template-columns: 28px 1fr; font-size: 10px; }
+  .edit-dialog { width: calc(100vw - 32px); padding: 22px 18px; }
+  .edit-dialog form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .edit-actions { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 370px) {
@@ -310,6 +374,8 @@
     font-size: 22px;
   }
   .quick-form .primary { min-height: 56px; }
+  html.keyboard-open .quick-form .primary {
+    right: 26px;
+    left: 26px;
+  }
 }
-
-.stats-sync { display: none; }
