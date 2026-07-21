@@ -1,0 +1,4 @@
+.quick-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.quick-form > * { min-width: 0; }
+.quick-form input, .quick-form select { width: 100%; min-width: 0; }
+.close { background: transparent; color: #72ffe8; }
