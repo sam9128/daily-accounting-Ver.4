@@ -1,6 +1,12 @@
-export const categories = ['食', '衣', '住', '行', '育', '樂', '醫', '用', '送', '美金', '日幣', '0050', '存', '轉'];
-export const expenseCategories = categories.slice(0, 9);
-export const investmentCategories = categories.slice(9, 12);
+export const defaultCategoryDefinitions = [
+  ...['食', '衣', '住', '行', '育', '樂', '醫', '用', '送'].map(name => ({ name, investment: false, systemRole: null })),
+  ...['美金', '日幣', '0050'].map(name => ({ name, investment: true, systemRole: null })),
+  { name: '存', investment: false, systemRole: 'saving' },
+  { name: '轉', investment: false, systemRole: 'transfer' },
+];
+export const categories = defaultCategoryDefinitions.map(item => item.name);
+export const expenseCategories = defaultCategoryDefinitions.filter(item => !item.investment && !item.systemRole).map(item => item.name);
+export const investmentCategories = defaultCategoryDefinitions.filter(item => item.investment).map(item => item.name);
 export const defaultAccounts = ['零用金', '郵局存款', '永豐存款', '台新存款', 'Line Bank', '口袋帳戶', '永豐金證券', '小姐姐VISA'];
 export const num = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 
@@ -15,10 +21,13 @@ const localToday = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
-function periodStats(rows, targetDate, scope) {
+function periodStats(rows, targetDate, scope, categoryDefinitions) {
   const target = dateParts(targetDate);
-  const values = Object.fromEntries(expenseCategories.map(category => [category, 0]));
-  const investments = Object.fromEntries(investmentCategories.map(category => [category, 0]));
+  const expenseNames = categoryDefinitions.filter(item => !item.investment && !item.systemRole).map(item => item.name);
+  const investmentNames = categoryDefinitions.filter(item => item.investment).map(item => item.name);
+  const definitionsByName = new Map(categoryDefinitions.map(item => [item.name, item]));
+  const values = Object.fromEntries(expenseNames.map(category => [category, 0]));
+  const investments = Object.fromEntries(investmentNames.map(category => [category, 0]));
   let save = 0;
   let transferTotal = 0;
   for (const row of rows) {
@@ -32,20 +41,21 @@ function periodStats(rows, targetDate, scope) {
     const delta = num(row.income) - num(row.expense);
     if (Object.hasOwn(values, row.category)) values[row.category] += delta;
     if (Object.hasOwn(investments, row.category)) investments[row.category] += delta;
-    if (row.category === '存') save += delta;
-    if (row.category === '轉') transferTotal += delta;
+    const definition = definitionsByName.get(row.category);
+    if (definition?.systemRole === 'saving') save += delta;
+    if (definition?.systemRole === 'transfer') transferTotal += delta;
   }
   const total = Object.values(values).reduce((sum, value) => sum + value, 0);
   const investmentTotal = Object.values(investments).reduce((sum, value) => sum + value, 0);
   return { values, total, save, diff: total + save, investments, investmentTotal, transferTotal };
 }
 
-export function calculate(transactions, accounts = defaultAccounts, targetDate = localToday()) {
+export function calculate(transactions, accounts = defaultAccounts, targetDate = localToday(), categoryDefinitions = defaultCategoryDefinitions) {
   const rows = transactions
     .filter(transaction => !transaction.deleted)
     .toSorted((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0));
   const balances = Object.fromEntries(accounts.map(account => [account, 0]));
-  const categoryTotals = Object.fromEntries(categories.map(category => [category, 0]));
+  const categoryTotals = Object.fromEntries(categoryDefinitions.map(category => [category.name, 0]));
   const rowDetails = {};
   const accountKeys = new Map(accounts.map((account, index) => [normalized(account), { account, index }]));
   let total = 0;
@@ -80,8 +90,8 @@ export function calculate(transactions, accounts = defaultAccounts, targetDate =
     categoryTotals,
     rowDetails,
     total,
-    day: periodStats(rows, targetDate, 'day'),
-    month: periodStats(rows, targetDate, 'month'),
-    year: periodStats(rows, targetDate, 'year')
+    day: periodStats(rows, targetDate, 'day', categoryDefinitions),
+    month: periodStats(rows, targetDate, 'month', categoryDefinitions),
+    year: periodStats(rows, targetDate, 'year', categoryDefinitions)
   };
 }

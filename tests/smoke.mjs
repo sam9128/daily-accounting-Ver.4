@@ -47,6 +47,74 @@ await page.getByText('分類項目', { exact: true }).last().waitFor();
 await page.locator('.toast').waitFor({ state: 'detached', timeout: 5000 });
 await page.screenshot({ path: process.env.DESKTOP_SHOT || '.test-output/desktop.png', fullPage: true });
 
+await page.getByRole('button', { name: /總計餘額/ }).click();
+await page.getByRole('heading', { name: '統計與流水' }).waitFor();
+await page.getByRole('button', { name: '設定' }).click();
+const settingsDialog = page.locator('.settings-dialog');
+await settingsDialog.getByRole('heading', { name: '設定', exact: true }).waitFor();
+await settingsDialog.getByRole('button', { name: '帳戶', exact: true }).click();
+await settingsDialog.getByLabel('新增帳戶').fill('測試帳戶');
+await settingsDialog.locator('.catalog-add').getByRole('button', { name: '新增', exact: true }).click();
+let managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試帳戶' });
+await managedItem.waitFor();
+await managedItem.getByRole('button', { name: '編輯' }).click();
+await managedItem.getByLabel('新的帳戶名稱').fill('測試現金');
+await managedItem.locator('.catalog-editor').getByRole('button', { name: '儲存' }).click();
+managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試現金' });
+await managedItem.waitFor();
+page.once('dialog', dialog => dialog.accept());
+await managedItem.getByRole('button', { name: '隱藏' }).click();
+await page.locator('.quick-form select[name="account"] option', { hasText: '測試現金' }).waitFor({ state: 'detached' });
+await settingsDialog.locator('.hidden-catalog summary').filter({ hasText: '已隱藏的帳戶' }).click();
+managedItem = settingsDialog.locator('.hidden-catalog .catalog-item').filter({ hasText: '測試現金' });
+await managedItem.getByRole('button', { name: '重新開啟' }).click();
+await page.locator('.quick-form select[name="account"] option', { hasText: '測試現金' }).waitFor({ state: 'attached' });
+
+await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
+await settingsDialog.getByLabel('新增分類').fill('測試投資');
+await settingsDialog.getByLabel('設為投資項目').check();
+await settingsDialog.locator('.catalog-add').getByRole('button', { name: '新增', exact: true }).click();
+managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試投資' });
+await managedItem.getByText('投資項目', { exact: false }).waitFor();
+await settingsDialog.getByLabel('新增分類').fill('零資料分類');
+await settingsDialog.locator('.catalog-add').getByRole('button', { name: '新增', exact: true }).click();
+managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '零資料分類' });
+page.once('dialog', dialog => dialog.accept());
+await managedItem.getByRole('button', { name: '隱藏' }).click();
+await settingsDialog.getByRole('button', { name: '關閉' }).click();
+
+await page.locator('.quick-categories').getByRole('button', { name: '測試投資', exact: true }).click();
+await page.locator('input[name="reason"]').fill('自訂投資測試');
+await page.locator('input[name="expense"]').fill('25');
+await page.getByRole('button', { name: /確認送出/ }).click();
+await page.getByText('已儲存到這台裝置。').waitFor();
+await page.getByRole('button', { name: /總計餘額/ }).click();
+await page.getByRole('button', { name: '設定' }).click();
+await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
+managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試投資' });
+await managedItem.getByText('1 筆流水', { exact: false }).waitFor();
+await managedItem.getByRole('button', { name: '編輯' }).click();
+await managedItem.getByLabel('新的分類名稱').fill('長期投資');
+await managedItem.locator('.catalog-editor').getByRole('button', { name: '儲存' }).click();
+managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '長期投資' });
+page.once('dialog', dialog => dialog.accept());
+await managedItem.getByRole('button', { name: '隱藏' }).click();
+await settingsDialog.getByRole('button', { name: '關閉' }).click();
+await page.locator('.quick-form select[name="category"] option', { hasText: '長期投資' }).waitFor({ state: 'detached' });
+await page.getByRole('button', { name: /總計餘額/ }).click();
+await page.locator('.investment-stats').getByRole('button', { name: /長期投資/ }).waitFor();
+if (await page.locator('.stats-dialog .stat-row').filter({ hasText: '零資料分類' }).count()) throw new Error('Hidden zero-value category is visible in current-period statistics.');
+await page.getByRole('button', { name: '設定' }).click();
+await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
+await settingsDialog.locator('.hidden-catalog summary').filter({ hasText: '已隱藏的分類' }).click();
+await settingsDialog.locator('.hidden-catalog .catalog-item').filter({ hasText: '長期投資' }).getByRole('button', { name: '重新開啟' }).click();
+await settingsDialog.locator('.hidden-catalog .catalog-item').filter({ hasText: '零資料分類' }).getByRole('button', { name: '重新開啟' }).click();
+if (process.env.SETTINGS_SHOT) await page.screenshot({ path: process.env.SETTINGS_SHOT, fullPage: true });
+await settingsDialog.getByRole('button', { name: '關閉' }).click();
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.quick-form select[name="account"] option', { hasText: '測試現金' }).waitFor({ state: 'attached' });
+await page.locator('.quick-form select[name="category"] option', { hasText: '長期投資' }).waitFor({ state: 'attached' });
+
 await page.setViewportSize({ width: 900, height: 900 });
 let overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 if (overflow > 1) throw new Error(`Horizontal overflow at 900x900: ${overflow}px`);
@@ -55,6 +123,40 @@ await page.setViewportSize({ width: 423, height: 822 });
 await page.locator('input[name="date"]').waitFor();
 await page.getByRole('button', { name: /總計餘額/ }).waitFor();
 await page.getByRole('button', { name: /零用金/ }).first().waitFor();
+await page.getByRole('button', { name: /總計餘額/ }).click();
+await page.getByRole('button', { name: '設定' }).click();
+await settingsDialog.getByRole('heading', { name: '設定', exact: true }).waitFor();
+const mobileSettingsLayout = await settingsDialog.evaluate(element => ({
+  width: element.getBoundingClientRect().width,
+  height: element.getBoundingClientRect().height,
+  overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  tabs: element.querySelectorAll('.settings-tabs button').length,
+  actionOverflow: [...element.querySelectorAll('.catalog-item')].some(item => {
+    const card = item.getBoundingClientRect();
+    const actions = item.querySelector('.catalog-actions')?.getBoundingClientRect();
+    return actions && (actions.top < card.top - 1 || actions.bottom > card.bottom + 1 || actions.right > card.right + 1);
+  }),
+  rowOverlap: [...element.querySelectorAll('.catalog-item')].some((item, index, items) => index < items.length - 1 && item.getBoundingClientRect().bottom > items[index + 1].getBoundingClientRect().top + 1),
+}));
+if (Math.abs(mobileSettingsLayout.width - 423) > 1 || Math.abs(mobileSettingsLayout.height - 822) > 1 || mobileSettingsLayout.overflow > 1 || mobileSettingsLayout.tabs !== 3 || mobileSettingsLayout.actionOverflow || mobileSettingsLayout.rowOverlap) throw new Error(`Mobile settings layout is not full-screen, categorized, and contained: ${JSON.stringify(mobileSettingsLayout)}`);
+if (process.env.SETTINGS_MOBILE_SHOT) await page.screenshot({ path: process.env.SETTINGS_MOBILE_SHOT, fullPage: true });
+await settingsDialog.getByRole('button', { name: '關閉' }).click();
+const accountSelect = page.locator('.quick-form select[name="account"]');
+await accountSelect.selectOption({ label: '小姐姐VISA' });
+await page.waitForFunction(() => {
+  const rail = document.querySelector('.accounts > div');
+  const selected = rail?.querySelector('button.selected');
+  if (!rail || !selected || !selected.textContent.includes('小姐姐VISA')) return false;
+  const railBox = rail.getBoundingClientRect();
+  const selectedBox = selected.getBoundingClientRect();
+  return rail.scrollLeft > 0 && selectedBox.left >= railBox.left - 1 && selectedBox.right <= railBox.right + 1;
+});
+if (process.env.ACCOUNT_SYNC_SHOT) await page.screenshot({ path: process.env.ACCOUNT_SYNC_SHOT, fullPage: true });
+await accountSelect.selectOption({ label: '零用金' });
+await page.waitForFunction(() => {
+  const rail = document.querySelector('.accounts > div');
+  return rail?.querySelector('button.selected')?.textContent.includes('零用金') && rail.scrollLeft < 2;
+});
 const dateColorScheme = await page.locator('input[name="date"]').evaluate(element => getComputedStyle(element).colorScheme);
 if (!dateColorScheme.includes('dark')) throw new Error(`Date picker does not use the dark color scheme: ${dateColorScheme}`);
 const totalCardTop = await page.getByRole('button', { name: /總計餘額/ }).evaluate(element => element.getBoundingClientRect().top);
@@ -153,14 +255,29 @@ await page.locator('.edit-dialog').getByRole('button', { name: '關閉' }).click
 await page.getByRole('heading', { name: '統計與流水' }).waitFor();
 await longPress(editableFlow);
 await page.getByRole('heading', { name: '修改流水' }).waitFor();
+const editActionStyle = await page.locator('.edit-actions').evaluate(element => {
+  const danger = element.querySelector('.danger');
+  const save = element.querySelector('.primary');
+  const dangerStyle = getComputedStyle(danger);
+  return {
+    heightDifference: Math.abs(danger.getBoundingClientRect().height - save.getBoundingClientRect().height),
+    borderStyle: dangerStyle.borderStyle,
+    borderRadius: parseFloat(dangerStyle.borderRadius),
+    background: dangerStyle.backgroundColor,
+    fontWeight: Number(dangerStyle.fontWeight),
+  };
+});
+if (editActionStyle.heightDifference > 1 || editActionStyle.borderStyle !== 'solid' || editActionStyle.borderRadius < 14 || editActionStyle.background === 'rgba(0, 0, 0, 0)' || editActionStyle.fontWeight < 700) throw new Error(`Delete button does not match the edit dialog style: ${JSON.stringify(editActionStyle)}`);
+if (process.env.EDIT_SHOT) await page.screenshot({ path: process.env.EDIT_SHOT, fullPage: true });
 page.once('dialog', dialog => dialog.accept());
 await page.getByRole('button', { name: '刪除這筆流水' }).click();
 await page.getByRole('heading', { name: '修改流水' }).waitFor({ state: 'detached' });
 await page.getByRole('heading', { name: '統計與流水' }).waitFor();
 await page.getByText('流水已刪除', { exact: false }).waitFor();
-await page.getByRole('button', { name: '資料與同步' }).first().click();
+await page.getByRole('button', { name: '設定' }).click();
+await page.locator('.settings-dialog').getByRole('button', { name: '資料', exact: true }).click();
 await page.getByRole('heading', { name: '資料與同步' }).waitFor();
-await page.getByRole('button', { name: '下載資料庫安全備份' }).waitFor();
+await page.getByRole('button', { name: '下載安全備份' }).waitFor();
 await page.getByRole('button', { name: '關閉' }).click();
 if (consoleErrors.length) throw new Error(`Browser console errors:\n${consoleErrors.join('\n')}`);
 await browser.close();

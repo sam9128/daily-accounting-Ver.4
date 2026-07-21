@@ -53,7 +53,7 @@ export async function downloadBackup() {
   if (!file) return null;
   const response = await api(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`);
   const payload = await response.json();
-  if (![4, 5].includes(payload?.schema) || !Array.isArray(payload.transactions)) {
+  if (![4, 5, 6].includes(payload?.schema) || !Array.isArray(payload.transactions)) {
     throw new Error('Drive 備份格式不相容。');
   }
   return payload;
