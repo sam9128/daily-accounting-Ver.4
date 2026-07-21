@@ -28,7 +28,7 @@ function QuickTransactionForm({ accounts, preferences, onSave }) {
     if (saved) setForm(current => ({ ...blankForm({ ...preferences, lastAccount: current.account, lastCategory: current.category }), account: current.account, category: current.category }));
   };
   return <form className="quick-form" onSubmit={submit}>
-    <div className="form-heading"><span className="eyebrow">QUICK ENTRY</span><h2>快速新增交易</h2></div>
+    <div className="form-heading"><h2>新增交易</h2></div>
     <label>日期<input name="date" type="date" value={form.date} onChange={change} required /></label>
     <label>帳戶<select name="account" value={form.account} onChange={change}>{accounts.map(account => <option key={account}>{account}</option>)}</select></label>
     <label className="wide">分類<select name="category" value={form.category} onChange={change}>{categories.map(category => <option key={category}>{category}</option>)}</select></label>
@@ -42,7 +42,7 @@ function QuickTransactionForm({ accounts, preferences, onSave }) {
 function SyncDialog({ onClose, onImport, onBackup, onSync, syncing, lastSynced }) {
   return <dialog open aria-labelledby="sync-title">
     <button className="close" onClick={onClose} aria-label="關閉">×</button>
-    <span className="eyebrow">DATA CONTROL</span><h2 id="sync-title">資料與同步</h2>
+    <h2 id="sync-title">資料與同步</h2>
     <p className="muted">帳本先安全保存在本機 IndexedDB；Google Drive 只保存一份版本化 JSON 備份。每筆資料以最後修改時間合併，並不保存 OAuth 權杖。</p>
     <label className="file-picker">匯入舊版 Excel<input type="file" accept=".xlsx,.xls" onChange={event => event.target.files[0] && onImport(event.target.files[0])} /></label>
     <button onClick={onBackup}>下載本機 JSON 備份</button>
@@ -60,6 +60,7 @@ export default function App() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [update, setUpdate] = useState(false);
+  const [mobileView, setMobileView] = useState('overview');
   const accounts = settings.accounts || defaultAccounts;
   const ledger = useMemo(() => calculate(transactions, accounts), [transactions, accounts]);
   const persistSetting = useCallback(async (key, value) => { await put('settings', { key, value }); setSettings(current => ({ ...current, [key]: value })); }, []);
@@ -79,6 +80,7 @@ export default function App() {
     const next = { ...preferences, lastAccount: values.account, lastCategory: values.category };
     setPreferences(next); savePreferences(next);
     setNotice('已儲存到這台裝置。');
+    setMobileView('transactions');
     return true;
   };
 
@@ -122,12 +124,13 @@ export default function App() {
     finally { setSyncing(false); }
   };
 
-  return <><aside><b>日常記帳 <em>VER.4</em></b><button>總覽</button><button onClick={() => document.querySelector('#transactions')?.scrollIntoView({ behavior: 'smooth' })}>交易明細</button><button onClick={() => setSyncOpen(true)}>資料與同步</button><small>LOCAL FIRST · {ledger.rows.length} 筆交易</small></aside><main>
-    <header><div><span className="eyebrow">PERSONAL LEDGER / 04</span><h1>財務總覽</h1></div><button onClick={() => setSyncOpen(true)}>◌ 資料與同步</button></header>
+  return <><aside><b>日常記帳 <em>Ver.4</em></b><button>總覽</button><button onClick={() => document.querySelector('#transactions')?.scrollIntoView({ behavior: 'smooth' })}>交易明細</button><button onClick={() => setSyncOpen(true)}>資料與同步</button><small>{ledger.rows.length} 筆交易</small></aside><main className={`view-${mobileView}`}>
+    <header><h1>財務總覽</h1><button onClick={() => setSyncOpen(true)}>資料與同步</button></header>
     {update && <div className="update">已有新版可用。<button onClick={() => location.reload()}>立即更新</button></div>}
     <section className="summary"><article className="total-card"><span>總計餘額 <i>›</i></span><strong>{money(ledger.total)}</strong><small><b>日支出</b> {money(Math.abs(ledger.month.total))}<br /><b className="positive">月收入</b> {money(ledger.month.diff + Math.abs(ledger.month.total))}</small></article><article className="accounts"><h2>帳戶餘額</h2><div>{accounts.map(account => <p key={account}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}>{money(ledger.balances[account])}</b></p>)}</div></article></section>
-    <section className="grid"><article className="analysis"><span className="eyebrow">MONTHLY SIGNAL</span><h2>本月支出分析</h2><strong className="spent">{money(Math.abs(ledger.month.total))}</strong><p>差額 {money(ledger.month.diff)} · 存 {money(ledger.month.save)}</p>{expenseCategories.map(category => <div className="category" key={category}><span>{category}</span><i style={{ width: `${Math.min(100, Math.abs(ledger.month.values[category]) / 5000 * 100)}%` }}></i><b>{money(Math.abs(ledger.month.values[category]))}</b></div>)}</article><QuickTransactionForm accounts={accounts} preferences={preferences} onSave={addTransaction} /></section>
-    <section id="transactions"><div className="section-heading"><div><span className="eyebrow">LAST 30 RECORDS</span><h2>近期交易</h2></div><button onClick={() => setSyncOpen(true)}>管理資料</button></div><div className="table-wrap"><table><thead><tr><th>日期</th><th>帳戶</th><th>分類</th><th>原因</th><th>支出</th><th>收入</th></tr></thead><tbody>{ledger.rows.slice(-30).reverse().map(record => <tr key={record.id}><td>{record.date}</td><td>{record.account}</td><td>{record.category}</td><td>{record.reason || '—'}</td><td className="out">{record.expense ? money(record.expense) : '—'}</td><td className="in">{record.income ? money(record.income) : '—'}</td></tr>)}</tbody></table></div></section>
+    <section className="grid"><article className="analysis"><h2>本月支出</h2><strong className="spent">{money(Math.abs(ledger.month.total))}</strong><p>差額 {money(ledger.month.diff)} · 儲蓄 {money(ledger.month.save)}</p>{expenseCategories.map(category => <div className="category" key={category}><span>{category}</span><i style={{ width: `${Math.min(100, Math.abs(ledger.month.values[category]) / 5000 * 100)}%` }}></i><b>{money(Math.abs(ledger.month.values[category]))}</b></div>)}</article><QuickTransactionForm accounts={accounts} preferences={preferences} onSave={addTransaction} /></section>
+    <section id="transactions"><div className="section-heading"><h2>近期交易</h2><button onClick={() => setSyncOpen(true)}>管理資料</button></div><div className="table-wrap"><table><thead><tr><th>日期</th><th>帳戶</th><th>分類</th><th>原因</th><th>支出</th><th>收入</th></tr></thead><tbody>{ledger.rows.slice(-30).reverse().map(record => <tr key={record.id}><td>{record.date}</td><td>{record.account}</td><td>{record.category}</td><td>{record.reason || '—'}</td><td className="out">{record.expense ? money(record.expense) : '—'}</td><td className="in">{record.income ? money(record.income) : '—'}</td></tr>)}</tbody></table></div></section>
+    <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button onClick={() => setSyncOpen(true)}>同步</button></nav>
     {syncOpen && <SyncDialog onClose={() => setSyncOpen(false)} onImport={importBook} onBackup={() => downloadJson(backupPayload())} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main></>;
