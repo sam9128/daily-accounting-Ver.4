@@ -1,0 +1,315 @@
+ .mobile-value { display: none; }
+
+@media (max-width: 640px) {
+  body {
+    padding-bottom: 0;
+    overflow-x: hidden;
+    background: #111;
+  }
+
+  #root {
+    display: block;
+    min-height: 100dvh;
+  }
+
+  main {
+    width: 100%;
+    max-width: 460px;
+    min-height: 100dvh;
+    padding: 6px 14px 0;
+  }
+
+  header { display: none; }
+
+  .summary {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .view-add .summary { display: block; }
+
+  .total-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 1fr;
+    width: 100%;
+    min-height: 104px;
+    padding: 17px 19px;
+    margin: 0 0 14px;
+    border: 1px solid #303030;
+    border-radius: 24px;
+    background: #191919;
+  }
+
+  .total-card > span {
+    grid-column: 1;
+    grid-row: 1;
+    color: #999;
+    font-size: 12px;
+    letter-spacing: .08em;
+  }
+
+  .total-card strong {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+    font-size: 32px;
+    line-height: 1;
+    letter-spacing: -.045em;
+  }
+
+  .total-card small {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: end;
+    min-width: 92px;
+    font-size: 11px;
+    line-height: 1.65;
+    text-align: right;
+    color: #aaa;
+  }
+
+  .total-card small b {
+    display: inline-block;
+    min-width: 42px;
+    margin-right: 4px;
+    text-align: left;
+    font-weight: 700;
+  }
+
+  .desktop-value { display: none; }
+  .mobile-value { display: inline; }
+  .total-card small > .mobile-value { display: grid; gap: 1px; }
+  .total-card small .daily,
+  .total-card small .monthly {
+    display: grid;
+    grid-template-columns: auto 6ch;
+    justify-content: end;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .total-card small .daily { color: #ff3b5c; }
+  .total-card small .monthly { color: #13d6a0; }
+  .total-card small .daily b,
+  .total-card small .monthly b {
+    min-width: 0;
+    margin: 0;
+    color: inherit !important;
+  }
+
+  .accounts {
+    margin: 0 -14px 14px;
+    padding-left: 14px;
+    overflow: hidden;
+  }
+
+  .accounts h2 { display: none; }
+
+  .accounts > div {
+    display: flex;
+    grid-template-columns: none;
+    gap: 9px;
+    margin: 0;
+    padding: 1px 14px 3px 1px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .accounts > div::-webkit-scrollbar { display: none; }
+
+  .accounts > div > button {
+    flex: 0 0 111px;
+    min-width: 111px;
+    height: 84px;
+    padding: 11px 13px;
+    border-color: #303030;
+    border-radius: 16px;
+    background: #191919;
+    scroll-snap-align: start;
+  }
+
+  .accounts > div > button.selected {
+    border-color: #58a6ff;
+    background: #191919;
+    box-shadow: inset 0 0 0 1px #58a6ff;
+  }
+
+  .accounts > div > button span {
+    margin-bottom: 7px;
+    font-size: 12px;
+  }
+
+  .accounts > div > button b { font-size: 16px; }
+  .accounts > div > button b span {
+    display: inline;
+    margin: 0;
+    color: inherit;
+    font-size: inherit;
+    overflow: visible;
+  }
+  .accounts > div > button b .desktop-value { display: none; }
+
+  .grid {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .analysis { display: none; }
+
+  .quick-form {
+    display: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto 1fr auto;
+    gap: 17px 12px;
+    margin: 0;
+    min-height: calc(100dvh - 222px);
+    padding: 24px 20px 12px;
+    border-color: #303030;
+    border-radius: 28px;
+    background: #191919;
+  }
+
+  .view-add .quick-form { display: grid; }
+  .view-add #transactions { display: none; }
+  .view-transactions .summary,
+  .view-transactions .grid { display: none; }
+  .view-overview .quick-form { display: none; }
+  .view-overview #transactions { display: block; }
+  .view-overview #transactions .table-wrap {
+    max-height: 330px;
+    overflow: auto;
+  }
+  .view-overview #transactions .section-heading { margin-top: 16px; }
+  .view-transactions #transactions { display: block; }
+
+  .form-heading { display: none; }
+
+  .quick-form label {
+    gap: 7px;
+    font-size: 10px;
+    letter-spacing: .02em;
+  }
+
+  .quick-form input,
+  .quick-form select {
+    height: 52px;
+    padding: 10px 13px;
+    border-color: #383838;
+    border-radius: 11px;
+    background: #222;
+    color: #f2f2f2;
+    font-size: 16px;
+  }
+
+  .quick-form .expense input,
+  .quick-form .income input {
+    height: 66px;
+    font-size: 24px;
+  }
+
+  .quick-form .expense { color: #d99a9a; }
+  .quick-form .income { color: #9fc5aa; }
+
+  .quick-form .primary {
+    grid-row: 6;
+    min-height: 64px;
+    margin-top: 2px;
+    border-radius: 16px;
+    font-size: 16px;
+    background: #2f6de8;
+    color: #050505;
+  }
+
+  .table-wrap table { min-width: 0; }
+  .table-wrap th:nth-child(2),
+  .table-wrap td:nth-child(2),
+  .table-wrap th:nth-child(4),
+  .table-wrap td:nth-child(4) { display: none; }
+  .table-wrap th,
+  .table-wrap td { padding: 11px 7px; }
+  .section-heading button { font-size: 12px; }
+
+  .mobile-nav {
+    position: fixed;
+    z-index: 3;
+    inset: auto 0 0;
+    height: 54px;
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: #1b1b1bf2;
+    border-top: 1px solid #353535;
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-nav button {
+    border: 0;
+    background: transparent;
+    color: #8e8e8e;
+    font-size: 11px;
+  }
+
+  .mobile-nav button.active {
+    color: #f1f1f1;
+    font-weight: 700;
+    border-top: 2px solid #c8cccf;
+  }
+
+  .toast {
+    left: 14px;
+    right: 14px;
+    bottom: 66px;
+    text-align: center;
+  }
+
+  .update {
+    left: 14px;
+    right: 14px;
+    top: 12px;
+  }
+
+  dialog { padding: 22px 18px; }
+
+  .stats-sync {
+    display: block !important;
+    min-height: 40px;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background: #242424;
+    color: #ddd;
+  }
+}
+
+@media (max-width: 370px) {
+  main { padding-inline: 10px; }
+  .accounts {
+    margin-inline: -10px;
+    padding-left: 10px;
+  }
+  .accounts > div { padding-right: 10px; }
+  .total-card {
+    padding: 15px 16px;
+    border-radius: 21px;
+  }
+  .total-card strong { font-size: 29px; }
+  .quick-form {
+    min-height: calc(100dvh - 222px);
+    padding: 20px 16px 12px;
+    border-radius: 24px;
+    gap: 14px 10px;
+  }
+  .quick-form input,
+  .quick-form select { height: 48px; }
+  .quick-form .expense input,
+  .quick-form .income input {
+    height: 60px;
+    font-size: 22px;
+  }
+  .quick-form .primary { min-height: 56px; }
+}
+
+.stats-sync { display: none; }

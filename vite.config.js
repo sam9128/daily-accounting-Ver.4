@@ -8,6 +8,6 @@ export default defineConfig(({ command, mode }) => ({
   plugins: [react(), VitePWA({
     registerType: 'autoUpdate',
     manifest: { name: '日常記帳 Ver.4', short_name: '日常記帳', theme_color: '#030817', background_color: '#030817', display: 'standalone' },
-    workbox: { navigateFallback: '/index.html', globPatterns: ['**/*.{js,css,html,svg,png,ico}'] }
+    workbox: { navigateFallback: 'index.html', globPatterns: ['**/*.{js,css,html,svg,png,ico}'] }
   })]
 }));

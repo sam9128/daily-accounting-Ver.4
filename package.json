@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test:logic": "node tests/ledger.mjs",
+    "validate": "pnpm run test:logic && pnpm run build",
     "test:e2e": "node tests/smoke.mjs"
   },
   "dependencies": {
@@ -15,8 +17,7 @@
     "react-dom": "latest",
     "vite": "latest",
     "vite-plugin-pwa": "latest",
-    "workbox-window": "latest",
-    "xlsx": "latest"
+    "workbox-window": "latest"
   },
   "devDependencies": {
     "playwright-core": "latest"

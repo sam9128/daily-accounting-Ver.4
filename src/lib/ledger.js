@@ -1,5 +1,74 @@
-export const categories = ['食','衣','住','行','育','樂','醫','用','送','美金','日幣','0050','存','轉'];
+export const categories = ['食', '衣', '住', '行', '育', '樂', '醫', '用', '送', '美金', '日幣', '0050', '存', '轉'];
 export const expenseCategories = categories.slice(0, 9);
-export const defaultAccounts = ['零用金','郵局存款','永豐存款','台新存款','Line Bank','口袋帳戶','永豐金證券','小姐姐VISA'];
+export const defaultAccounts = ['零用金', '郵局存款', '永豐存款', '台新存款', 'Line Bank', '口袋帳戶', '永豐金證券', '小姐姐VISA'];
 export const num = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-export function calculate(transactions, accounts) { const rows = transactions.filter(t => !t.deleted).toSorted((a,b) => a.sequence-b.sequence); const balances = Object.fromEntries(accounts.map(a => [a,0])); let total = 0; for (const t of rows) { const e=num(t.expense), i=num(t.income), r=t.reason || ''; total += i-e; for (const a of accounts) { if (t.account === a) balances[a] += r.startsWith('轉') ? -e : i-e; else if (r === `轉${a}`) balances[a] += i; } } const current = rows.at(-1); const stats = kind => { const values = Object.fromEntries(expenseCategories.map(c=>[c,0])); if (!current) return { values,total:0,diff:0,save:0 }; const target=new Date(`${current.date}T00:00:00`); let save=0, transfer=0; for (let x=rows.length-1;x>=0;x--) { const d=new Date(`${rows[x].date}T00:00:00`); if (kind==='year' ? d.getFullYear()!==target.getFullYear() : d.getMonth()!==target.getMonth()) break; const delta=num(rows[x].income)-num(rows[x].expense); if (rows[x].category in values) values[rows[x].category]+=delta; if(rows[x].category==='存')save+=delta; if(rows[x].category==='轉')transfer+=delta; } const subtotal=Object.values(values).reduce((a,b)=>a+b,0); return {values,total:subtotal,diff:subtotal+transfer,save}; }; return {rows,balances,total,month:stats('month'),year:stats('year')}; }
+
+const normalized = value => String(value ?? '').trim().toLocaleLowerCase('en-US');
+const sameText = (left, right) => normalized(left) === normalized(right);
+const dateParts = value => {
+  const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+  return { year, month, day };
+};
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+function periodStats(rows, targetDate, scope) {
+  const target = dateParts(targetDate);
+  const values = Object.fromEntries(expenseCategories.map(category => [category, 0]));
+  let save = 0;
+  for (const row of rows) {
+    const date = dateParts(row.date);
+    const included = scope === 'day'
+      ? date.year === target.year && date.month === target.month && date.day === target.day
+      : scope === 'month'
+        ? date.year === target.year && date.month === target.month
+        : date.year === target.year;
+    if (!included) continue;
+    const delta = num(row.income) - num(row.expense);
+    if (Object.hasOwn(values, row.category)) values[row.category] += delta;
+    if (row.category === '存') save += delta;
+  }
+  const total = Object.values(values).reduce((sum, value) => sum + value, 0);
+  return { values, total, save, diff: total + save };
+}
+
+export function calculate(transactions, accounts = defaultAccounts, targetDate = localToday()) {
+  const rows = transactions
+    .filter(transaction => !transaction.deleted)
+    .toSorted((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0));
+  const balances = Object.fromEntries(accounts.map(account => [account, 0]));
+  const categoryTotals = Object.fromEntries(categories.map(category => [category, 0]));
+  const accountKeys = new Map(accounts.map((account, index) => [normalized(account), { account, index }]));
+  let total = 0;
+
+  for (const transaction of rows) {
+    const expense = num(transaction.expense);
+    const income = num(transaction.income);
+    const delta = income - expense;
+    const source = accountKeys.get(normalized(transaction.account));
+    const reason = String(transaction.reason ?? '').trim();
+    total += delta;
+    if (Object.hasOwn(categoryTotals, transaction.category)) categoryTotals[transaction.category] += delta;
+
+    for (let index = 0; index < accounts.length; index += 1) {
+      const account = accounts[index];
+      if (source?.index === index) {
+        balances[account] += normalized(reason).startsWith('轉') ? (index === 0 ? -expense : -income) : delta;
+      } else if (sameText(reason, `轉${account}`)) {
+        balances[account] += income;
+      }
+    }
+  }
+
+  return {
+    rows,
+    balances,
+    categoryTotals,
+    total,
+    day: periodStats(rows, targetDate, 'day'),
+    month: periodStats(rows, targetDate, 'month'),
+    year: periodStats(rows, targetDate, 'year')
+  };
+}

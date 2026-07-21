@@ -1,21 +1,38 @@
-# 日常記帳 Ver.4（GitHub Pages 版）
+# 日常記帳 Ver.4
 
-這是純靜態、離線優先的記帳程式。交易主資料存在瀏覽器 IndexedDB；Google Drive 是跨裝置同步備份，Google 試算表僅為可選鏡像，不再參與計算。
+純靜態、離線優先的 React 記帳程式，部署於 GitHub Pages。
 
-## 第一次部署
+## 資料架構
 
-1. 在 Google Cloud Console 建立「網頁應用程式」OAuth 2.0 Client ID，將 GitHub Pages 網址和本機測試網址加到 *Authorized JavaScript origins*。
-2. 啟用 Google Drive API 與 Google Sheets API。
-3. 將 `config.example.js` 複製為 `config.js`，填入 Client ID；`config.js` 已被忽略，不會提交。
-4. 將專案根目錄發布到 GitHub Pages。首次開啟後，從「資料與同步」匯入舊 `.xlsx`，再按「連線 Google Drive」。
-
-## 資料與計算相容性
-
-匯入器只讀取舊帳本的交易資料與帳戶標題，並保留原始列順序。運算等價於舊表：一般交易為收入減支出；原因以 `轉` 開頭時從來源帳戶扣支出；原因恰為 `轉{目標帳戶}` 時向目標帳戶加收入。月／年類別統計、差額與「存」也沿用原公式的序列規則。
+- IndexedDB 是唯一主資料庫，保存交易與設定。
+- 公開網站與 GitHub 原始碼完全不包含歷史帳目；新裝置以空資料庫開始。
+- 第一次開啟空資料庫時，程式會主動顯示 Google Drive 私密還原，也可選擇本機 JSON 私密備份。
+- 已有 IndexedDB 資料的裝置不會被清空或重複匯入。
+- 帳戶餘額、分類累計、日／月／年統計全部由 `src/lib/ledger.js` 即時計算。
+- Excel 不再是執行時依賴；專案也不包含 Excel 解析套件或匯入介面。
 
 ## 同步與備份
 
-- 每次異動會寫入 IndexedDB，並在已連線時排程同步。
-- 開啟程式後超過 24 小時會再備份一次；瀏覽器關閉期間，純靜態網站不能自行執行排程。
-- Drive 檔案只包含此應用程式建立的 `daily-book-backup.json`；資料以交易 UUID 合併，最近修改優先。
-- 「同步試算表」會建立或更新 `網頁同步` 分頁，不會改寫舊的 `存款` 工作表。
+- Google Drive 保存 schema 5 的 JSON 備份，並可讀取舊 schema 4 備份。
+- 同步採交易 ID 合併，`updatedAt` 較新的版本優先。
+- OAuth 權杖只保存在記憶體，不寫入 IndexedDB 或 LocalStorage。
+- 空裝置若在 Drive 找不到備份會停止操作，不會建立或上傳空帳本。
+- 本機 JSON 安全備份仍可下載；試算表匯出功能留待後續實作。
+- 私密轉換檔請放在 `.private-data/`；該目錄已被 Git 忽略，禁止提交。
+
+## 本機開發
+
+```bash
+pnpm install
+pnpm run dev
+```
+
+驗證資料運算與正式建置：
+
+```bash
+pnpm run validate
+```
+
+## Google Drive 設定
+
+在 GitHub Actions／Pages 設定 `VITE_GOOGLE_CLIENT_ID`，並在 Google Cloud Console 將正式 Pages 網址加入 OAuth 網頁應用程式的 Authorized JavaScript origins。只需啟用 Google Drive API，不再需要 Google Sheets API。
