@@ -1,0 +1,24 @@
+{
+  "name": "daily-accounting-ver4",
+  "private": true,
+  "version": "4.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "node tests/smoke.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest",
+    "vite-plugin-pwa": "latest",
+    "workbox-window": "latest",
+    "xlsx": "latest"
+  },
+  "devDependencies": {
+    "playwright-core": "latest"
+  }
+}

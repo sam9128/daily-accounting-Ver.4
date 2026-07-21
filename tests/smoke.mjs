@@ -1,0 +1,10 @@
+import { chromium } from 'playwright-core';
+const executablePath = process.env.CHROME_BIN;
+if (!executablePath) throw new Error('Set CHROME_BIN to a Chromium/Chrome executable before running test:e2e.');
+const browser = await chromium.launch({ headless: true, executablePath });
+const page = await browser.newPage();
+await page.goto(process.env.APP_URL || 'http://127.0.0.1:4173', { waitUntil: 'networkidle' });
+await page.getByRole('heading', { name: '總覽' }).waitFor();
+await page.getByRole('button', { name: '資料與同步' }).first().click();
+await page.getByRole('heading', { name: '資料與同步' }).waitFor();
+await browser.close();
