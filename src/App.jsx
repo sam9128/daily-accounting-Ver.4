@@ -134,7 +134,7 @@ function StatsDialog({ ledger, accounts, categoryDefinitions, onClose, onEdit, o
   const investmentCategories = categoryDefinitions.filter(item => item.investment).map(item => item.name);
   const hiddenCategories = new Set(categoryDefinitions.filter(item => item.hidden).map(item => item.name));
   const periodLedger = useMemo(() => calculate(ledger.rows, accounts, cursorDate, categoryDefinitions), [ledger.rows, accounts, cursorDate, categoryDefinitions]);
-  const stats = mode === 'year' ? periodLedger.year : periodLedger.month;
+  const stats = mode === 'day' ? periodLedger.day : mode === 'year' ? periodLedger.year : periodLedger.month;
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('zh-TW');
     return ledger.rows.slice().reverse().filter(record => {
@@ -154,7 +154,8 @@ function StatsDialog({ ledger, accounts, categoryDefinitions, onClose, onEdit, o
     return ledger.rows.slice().reverse().filter(record => {
       const recordDate = new Date(`${record.date}T12:00:00`);
       return recordDate.getFullYear() === target.getFullYear()
-        && (mode === 'year' || recordDate.getMonth() === target.getMonth());
+        && (mode === 'year' || recordDate.getMonth() === target.getMonth())
+        && (mode !== 'day' || recordDate.getDate() === target.getDate());
     });
   }, [ledger.rows, cursorDate, mode]);
   const visibleExpenseCategories = expenseCategories.filter(item => !hiddenCategories.has(item) || Math.abs(stats.values[item]) > 0);
@@ -170,17 +171,22 @@ function StatsDialog({ ledger, accounts, categoryDefinitions, onClose, onEdit, o
   const movePeriod = direction => {
     const date = new Date(`${cursorDate}T12:00:00`);
     if (mode === 'year') date.setFullYear(date.getFullYear() + direction);
+    else if (mode === 'day') date.setDate(date.getDate() + direction);
     else date.setMonth(date.getMonth() + direction);
     setCursorDate(date.toLocaleDateString('sv-SE'));
     setExpandedCategory('');
   };
   const selectedDate = new Date(`${cursorDate}T12:00:00`);
-  const periodLabel = mode === 'year' ? `${selectedDate.getFullYear()} 年` : `${selectedDate.getFullYear()} 年 ${selectedDate.getMonth() + 1} 月`;
-  const previousPeriodLabel = mode === 'year' ? '上一年' : '上一月';
-  const nextPeriodLabel = mode === 'year' ? '下一年' : '下一月';
+  const periodLabel = mode === 'year'
+    ? `${selectedDate.getFullYear()} 年`
+    : mode === 'day'
+      ? `${selectedDate.getFullYear()} 年 ${selectedDate.getMonth() + 1} 月 ${selectedDate.getDate()} 日`
+      : `${selectedDate.getFullYear()} 年 ${selectedDate.getMonth() + 1} 月`;
+  const previousPeriodLabel = mode === 'year' ? '上一年' : mode === 'day' ? '上一日' : '上一月';
+  const nextPeriodLabel = mode === 'year' ? '下一年' : mode === 'day' ? '下一日' : '下一月';
   const selectMode = nextMode => { setMode(nextMode); setExpandedCategory(''); };
   return <dialog open className="stats-dialog" aria-labelledby="stats-title">
-    <header className="stats-header"><button className="stats-close" onClick={onClose} aria-label="關閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button><h2 id="stats-title">統計與流水</h2><div className="mode-tabs"><button className={mode === 'month' ? 'active' : ''} onClick={() => selectMode('month')}>月</button><button className={mode === 'year' ? 'active' : ''} onClick={() => selectMode('year')}>年</button><button className={mode === 'all' ? 'active' : ''} onClick={() => selectMode('all')}>流水</button></div><button className="stats-settings" onClick={onSettings} aria-label="設定"><GearIcon /></button></header>
+    <header className="stats-header"><button className="stats-close" onClick={onClose} aria-label="關閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button><h2 id="stats-title">統計與流水</h2><div className="mode-tabs"><button className={mode === 'day' ? 'active' : ''} onClick={() => selectMode('day')}>日</button><button className={mode === 'month' ? 'active' : ''} onClick={() => selectMode('month')}>月</button><button className={mode === 'year' ? 'active' : ''} onClick={() => selectMode('year')}>年</button><button className={mode === 'all' ? 'active' : ''} onClick={() => selectMode('all')}>流水</button></div><button className="stats-settings" onClick={onSettings} aria-label="設定"><GearIcon /></button></header>
     {mode !== 'all' ? <><div className="period-pager"><button onClick={() => movePeriod(-1)}>{previousPeriodLabel}</button><strong>{periodLabel}</strong><button onClick={() => movePeriod(1)}>{nextPeriodLabel}</button></div><section className="stats-content"><div className="stats-overview"><div className="donut" style={{ background: totalSpent ? `conic-gradient(${chart})` : '#292929' }}><div><span>支出</span><strong>{plainMoney(totalSpent)}</strong></div></div><div className="stat-summaries"><article><span>差額</span><strong>{plainMoney(stats.diff)}</strong></article><article><span>儲蓄</span><strong>{plainMoney(stats.save)}</strong></article></div></div><div className="stat-list">{visibleExpenseCategories.map((item, index) => <div className="stat-entry" key={item}><button className="stat-row" aria-expanded={expandedCategory === item} onClick={() => setExpandedCategory(current => current === item ? '' : item)}><i style={{ backgroundColor: chartColors[index % chartColors.length] }}></i><span>{item}</span><b>{plainMoney(Math.abs(stats.values[item]))}</b><small>{totalSpent ? `${(Math.abs(stats.values[item]) / totalSpent * 100).toFixed(1)}%` : '0.0%'}</small></button>{expandedCategory === item && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item)} onEdit={onEdit} showHint={false} /></div>}</div>)}</div><section className="investment-stats"><h3>帳目項目 <small>投資淨額 {plainMoney(stats.investmentTotal)} · 轉帳 {plainMoney(stats.transferTotal)}</small></h3>{visibleInvestmentCategories.map((item, index) => <div className="stat-entry" key={item}><button className="stat-row" aria-expanded={expandedCategory === item} onClick={() => setExpandedCategory(current => current === item ? '' : item)}><i style={{ backgroundColor: investmentColors[index % investmentColors.length] }}></i><span>{item}</span><b>{plainMoney(stats.investments[item])}</b><small>投資</small></button>{expandedCategory === item && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item)} onEdit={onEdit} showHint={false} /></div>}</div>)}{categoryDefinitions.filter(item => item.systemRole === 'transfer' && (!item.hidden || Math.abs(stats.transferTotal) > 0)).map(item => <div className="stat-entry" key={item.id}><button className="stat-row" aria-expanded={expandedCategory === item.name} onClick={() => setExpandedCategory(current => current === item.name ? '' : item.name)}><i className="transfer-color"></i><span>{item.name}</span><b>{plainMoney(stats.transferTotal)}</b><small>轉帳</small></button>{expandedCategory === item.name && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item.name)} onEdit={onEdit} showHint={false} /></div>}</div>)}</section></section></> : <section className="logs"><div className="filters"><input className="log-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="查詢流水" aria-label="查詢流水" /><select value={account} onChange={event => setAccount(event.target.value)}><option value="all">所有帳戶</option>{accounts.map(item => <option key={item}>{item}</option>)}</select><select value={category} onChange={event => setCategory(event.target.value)}><option value="all">所有分類</option>{categories.map(item => <option key={item}>{item}</option>)}</select></div><DesktopFlowLedger records={visible} rowDetails={ledger.rowDetails} onEdit={onEdit} /><div className="mobile-flow-records"><FlowRows records={visible} onEdit={onEdit} /></div></section>}
   </dialog>;
 }
