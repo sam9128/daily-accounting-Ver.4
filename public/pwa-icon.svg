@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">日常記帳 Ver.4</title>
+  <desc id="desc">深色帳本與餘額節點圖示</desc>
+  <rect width="512" height="512" rx="124" fill="#111214"/>
+  <rect x="42" y="42" width="428" height="428" rx="102" fill="#191a1c" stroke="#34373b" stroke-width="8"/>
+  <path d="M172 142h142c18 0 32 14 32 32v164c0 18-14 32-32 32H172c-18 0-32-14-32-32V174c0-18 14-32 32-32Z" fill="#202225" stroke="#696e74" stroke-width="8"/>
+  <path d="M194 142v228" fill="none" stroke="#2f6de8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M230 211h72M230 256h72M230 301h42" fill="none" stroke="#bfc5ca" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="324" cy="301" r="18" fill="#2f6de8"/>
+  <circle cx="324" cy="301" r="8" fill="#dce9ff"/>
+</svg>
