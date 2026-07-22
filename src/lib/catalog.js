@@ -93,6 +93,21 @@ export function alignTransactionsToCatalog(records, catalog, timestamp = new Dat
   });
 }
 
+export function moveCatalogEntry(items, id, direction) {
+  if (!Array.isArray(items) || ![-1, 1].includes(direction)) return items;
+  const source = items.find(item => item.id === id);
+  if (!source) return items;
+  const peers = items.filter(item => item.hidden === source.hidden);
+  const peerIndex = peers.findIndex(item => item.id === id);
+  const target = peers[peerIndex + direction];
+  if (!target) return items;
+  const sourceIndex = items.findIndex(item => item.id === source.id);
+  const targetIndex = items.findIndex(item => item.id === target.id);
+  const reordered = [...items];
+  [reordered[sourceIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[sourceIndex]];
+  return reordered;
+}
+
 export const catalogUsage = (records, field, name, aliases = []) => {
   const names = new Set([name, ...aliases].map(key));
   return records.filter(record => {

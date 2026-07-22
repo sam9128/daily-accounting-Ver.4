@@ -108,8 +108,9 @@
 .new-investment { height: 42px; padding: 0 6px; }
 .new-investment input, .edit-investment input { width: 16px; height: 16px; accent-color: #6c8fcf; }
 .catalog-list { min-height: 0; display: grid; align-content: start; gap: 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #44474a transparent; }
-.catalog-item { position: relative; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 10px 12px 10px 15px; border: 1px solid #303335; border-radius: 14px; background: #1b1c1e; }
+.catalog-item { position: relative; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 10px 12px 10px 15px; border: 1px solid #303335; border-radius: 14px; background: #1b1c1e; cursor: default; user-select: none; -webkit-touch-callout: none; }
 .catalog-item.is-hidden { background: #171819; opacity: .78; }
+.catalog-item.is-sorting { border-color: #5875a8; background: #1d232c; box-shadow: inset 3px 0 0 #6c8fcf; }
 .catalog-copy { min-width: 0; }
 .catalog-copy strong, .catalog-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .catalog-copy strong { color: #eceeee; font-size: 14px; }
@@ -119,6 +120,10 @@
 .catalog-actions .catalog-hide { border-color: #56373a; color: #d58c92; }
 .catalog-actions .catalog-restore { border-color: #3c5147; color: #91bea8; }
 .catalog-actions .catalog-delete { border-color: #674045; background: #2a1d1f; color: #e39aa1; }
+.catalog-order-controls { display: flex; gap: 6px; }
+.catalog-order-controls button { min-width: 48px; }
+.catalog-order-controls button:disabled { opacity: .32; cursor: not-allowed; }
+.catalog-order-controls .order-done { border-color: #465b4f; color: #9bc5ae; }
 .catalog-edit-layer { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; overflow-y: auto; overscroll-behavior: contain; background: #08090add; backdrop-filter: blur(7px); }
 .catalog-edit-panel { width: min(440px, 100%); padding: 22px; border: 1px solid #45494c; border-radius: 18px; background: #1b1c1e; box-shadow: 0 24px 70px #000c; }
 .catalog-edit-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }

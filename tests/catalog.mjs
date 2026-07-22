@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { alignTransactionsToCatalog, catalogFromBackup, catalogUsage, mergeCatalog, normalizeCatalog, renameTransactionReferences } from '../src/lib/catalog.js';
+import { alignTransactionsToCatalog, catalogFromBackup, catalogUsage, mergeCatalog, moveCatalogEntry, normalizeCatalog, renameTransactionReferences } from '../src/lib/catalog.js';
 
 const legacy = normalizeCatalog(null, { accounts: ['現金'], categories: [{ name: '餐飲', investment: false }] });
 assert.equal(legacy.accounts[0].name, '現金');
@@ -27,6 +27,11 @@ assert.equal(catalogUsage([transaction], 'account', '生活帳戶', ['現金']),
 assert.equal(catalogUsage([{ ...transaction, account: '其他帳戶' }], 'account', '生活帳戶', ['現金']), 1, 'Transfer targets must block account deletion.');
 assert.equal(catalogUsage([{ ...transaction, account: '其他帳戶', reason: '', deleted: true }], 'account', '生活帳戶', ['現金']), 0, 'Deleted rows must not block catalog cleanup.');
 assert.equal(catalogUsage([transaction], 'category', '日常餐飲', ['餐飲']), 1);
+
+const orderedItems = [{ id: 'active-a', hidden: false }, { id: 'hidden-a', hidden: true }, { id: 'active-b', hidden: false }, { id: 'hidden-b', hidden: true }];
+assert.deepEqual(moveCatalogEntry(orderedItems, 'active-b', -1).map(item => item.id), ['active-b', 'hidden-a', 'active-a', 'hidden-b']);
+assert.deepEqual(moveCatalogEntry(orderedItems, 'hidden-a', 1).map(item => item.id), ['active-a', 'hidden-b', 'active-b', 'hidden-a']);
+assert.equal(moveCatalogEntry(orderedItems, 'active-a', -1), orderedItems, 'Boundary moves must preserve the original array.');
 
 const older = { ...catalog, updatedAt: '2026-02-01T00:00:00.000Z' };
 assert.equal(mergeCatalog(catalog, older), catalog);
