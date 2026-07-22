@@ -350,7 +350,8 @@
   .edit-dialog { width: calc(100vw - 32px); padding: 22px 18px; }
   .edit-dialog form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .edit-actions { grid-template-columns: 1fr; }
-  .settings-dialog { inset: 0; width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; grid-template-rows: 66px 50px minmax(0, 1fr); }
+  .settings-dialog { inset: 0; width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+  .settings-shell { grid-template-rows: 66px 50px minmax(0, 1fr); }
   .settings-header { padding: 0 16px; }
   .settings-title > .gear-icon { width: 22px; height: 22px; }
   .settings-tabs { padding: 7px 14px; }
@@ -363,9 +364,9 @@
   .investment-toggle { grid-column: 1; }
   .catalog-actions { grid-column: 2; grid-row: 1; flex-direction: row; }
   .catalog-actions button { min-width: 54px; padding-inline: 8px; }
-  .catalog-editor { grid-template-columns: minmax(0, 1fr) 62px; }
-  .catalog-editor input { grid-column: 1 / -1; }
-  .catalog-editor .primary { grid-column: 2; }
+  .catalog-edit-layer { place-items: end center; padding: 12px 12px max(12px, env(safe-area-inset-bottom)); background: #08090ae8; }
+  .catalog-edit-panel { width: 100%; padding: 19px 16px 16px; border-radius: 20px; }
+  .catalog-edit-panel > p { margin-top: 16px; }
   .settings-card { grid-template-columns: 1fr; padding: 16px; }
   .settings-card > button, .settings-card > .primary { width: 100%; }
 }

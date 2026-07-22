@@ -84,7 +84,8 @@
 .edit-actions .danger { border: 1px solid #5d3539; background: #24191b; color: #e79199; }
 .edit-actions .danger:hover { border-color: #875057; background: #2e1d20; color: #f0a4aa; }
 
-.settings-dialog { width: min(920px, calc(100vw - 40px)); height: min(760px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); grid-template-rows: 72px 52px minmax(0, 1fr); gap: 0 !important; padding: 0; overflow: hidden; border-color: #383b3d; border-radius: 22px; background: #161718; }
+.settings-dialog { isolation: isolate; width: min(920px, calc(100vw - 40px)); height: min(760px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); gap: 0 !important; padding: 0; overflow: hidden; border-color: #383b3d; border-radius: 22px; background: #161718; }
+.settings-shell { min-width: 0; min-height: 0; display: grid; grid-template-rows: 72px 52px minmax(0, 1fr); }
 .settings-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid var(--line); }
 .settings-title { display: flex; align-items: center; gap: 13px; }
 .settings-title > .gear-icon { width: 24px; height: 24px; color: #bfc3c6; }
@@ -117,10 +118,22 @@
 .catalog-actions button { min-height: 34px; padding: 6px 10px; border: 1px solid #3f4244; border-radius: 9px; background: transparent; color: #b8bcbe; font-size: 11px; font-weight: 650; }
 .catalog-actions .catalog-hide { border-color: #56373a; color: #d58c92; }
 .catalog-actions .catalog-restore { border-color: #3c5147; color: #91bea8; }
-.catalog-editor { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 72px 90px; gap: 8px; padding-top: 10px; border-top: 1px solid #303335; }
-.catalog-editor input { min-width: 0; height: 40px; padding: 8px 11px; border: 1px solid #494d50; border-radius: 9px; background: #222426; color: #fff; }
-.catalog-editor button { min-height: 40px; border: 1px solid #45484b; border-radius: 10px; background: transparent; color: #c6c9cb; }
-.catalog-editor .primary { border: 0; color: #050505; }
+.catalog-edit-layer { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; overflow-y: auto; overscroll-behavior: contain; background: #08090add; backdrop-filter: blur(7px); }
+.catalog-edit-panel { width: min(440px, 100%); padding: 22px; border: 1px solid #45494c; border-radius: 18px; background: #1b1c1e; box-shadow: 0 24px 70px #000c; }
+.catalog-edit-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.catalog-edit-panel > header small { color: #858b8f; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.catalog-edit-panel h3 { margin: 4px 0 0; color: #f1f2f2; font-size: 18px; }
+.catalog-edit-panel > header button { width: 36px; height: 36px; padding: 0; border: 1px solid #3f4346; border-radius: 10px; background: #222426; color: #b9bdc0; font-size: 22px; line-height: 1; }
+.catalog-edit-panel > p { margin: 20px 0 14px; color: #8f9497; font-size: 11px; }
+.catalog-edit-panel > p strong { margin-left: 6px; color: #d9dbdc; font-size: 12px; }
+.catalog-edit-panel form, .catalog-edit-panel label { display: grid; gap: 8px; }
+.catalog-edit-panel label > span { color: #aeb2b5; font-size: 10px; font-weight: 700; }
+.catalog-edit-panel input { width: 100%; min-width: 0; height: 46px; padding: 9px 12px; border: 1px solid #555a5e; border-radius: 11px; outline: 0; background: #222426; color: #fff; font-size: 15px; }
+.catalog-edit-panel input:focus { border-color: #8d969d; box-shadow: inset 0 0 0 1px #8d969d; }
+.catalog-edit-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 9px; margin-top: 10px; }
+.catalog-edit-actions button { min-height: 44px; border: 1px solid #45494c; border-radius: 11px; background: transparent; color: #c6c9cb; font-weight: 700; }
+.catalog-edit-actions .primary { border: 0; background: var(--accent); color: #050505; }
+.catalog-edit-actions .primary:hover { background: #3c78ed; }
 .hidden-catalog { border-top: 1px solid #303335; padding-top: 10px; }
 .hidden-catalog summary { cursor: pointer; color: #9ba0a3; font-size: 11px; font-weight: 700; }
 .hidden-catalog summary span { display: inline-grid; min-width: 20px; height: 20px; place-items: center; margin-left: 5px; border-radius: 10px; background: #2b2d2f; }

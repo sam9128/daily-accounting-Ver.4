@@ -58,8 +58,18 @@ await settingsDialog.locator('.catalog-add').getByRole('button', { name: '新增
 let managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試帳戶' });
 await managedItem.waitFor();
 await managedItem.getByRole('button', { name: '編輯' }).click();
-await managedItem.getByLabel('新的帳戶名稱').fill('測試現金');
-await managedItem.locator('.catalog-editor').getByRole('button', { name: '儲存' }).click();
+let catalogEditor = settingsDialog.locator('.catalog-edit-layer');
+await catalogEditor.getByLabel('新的帳戶名稱').fill('測試現金');
+const desktopEditorLayer = await catalogEditor.evaluate(element => {
+  const layer = element.getBoundingClientRect();
+  const settings = element.closest('.settings-dialog').getBoundingClientRect();
+  const panel = element.querySelector('.catalog-edit-panel').getBoundingClientRect();
+  const top = document.elementFromPoint(panel.left + panel.width / 2, panel.top + 10);
+  return { coversSettings: Math.abs(layer.left - settings.left) <= 2 && Math.abs(layer.top - settings.top) <= 2 && Math.abs(layer.right - settings.right) <= 2 && Math.abs(layer.bottom - settings.bottom) <= 2, panelContained: panel.left >= layer.left && panel.right <= layer.right && panel.top >= layer.top && panel.bottom <= layer.bottom, panelIsTopmost: element.contains(top) };
+});
+if (!desktopEditorLayer.coversSettings || !desktopEditorLayer.panelContained || !desktopEditorLayer.panelIsTopmost) throw new Error(`Catalog editor is not an isolated top layer: ${JSON.stringify(desktopEditorLayer)}`);
+await catalogEditor.getByRole('button', { name: '儲存變更' }).click();
+await catalogEditor.waitFor({ state: 'detached' });
 managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試現金' });
 await managedItem.waitFor();
 page.once('dialog', dialog => dialog.accept());
@@ -94,8 +104,9 @@ await settingsDialog.getByRole('button', { name: '分類', exact: true }).click(
 managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試投資' });
 await managedItem.getByText('1 筆流水', { exact: false }).waitFor();
 await managedItem.getByRole('button', { name: '編輯' }).click();
-await managedItem.getByLabel('新的分類名稱').fill('長期投資');
-await managedItem.locator('.catalog-editor').getByRole('button', { name: '儲存' }).click();
+catalogEditor = settingsDialog.locator('.catalog-edit-layer');
+await catalogEditor.getByLabel('新的分類名稱').fill('長期投資');
+await catalogEditor.getByRole('button', { name: '儲存變更' }).click();
 managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '長期投資' });
 page.once('dialog', dialog => dialog.accept());
 await managedItem.getByRole('button', { name: '隱藏' }).click();
@@ -139,7 +150,17 @@ const mobileSettingsLayout = await settingsDialog.evaluate(element => ({
   rowOverlap: [...element.querySelectorAll('.catalog-item')].some((item, index, items) => index < items.length - 1 && item.getBoundingClientRect().bottom > items[index + 1].getBoundingClientRect().top + 1),
 }));
 if (Math.abs(mobileSettingsLayout.width - 423) > 1 || Math.abs(mobileSettingsLayout.height - 822) > 1 || mobileSettingsLayout.overflow > 1 || mobileSettingsLayout.tabs !== 3 || mobileSettingsLayout.actionOverflow || mobileSettingsLayout.rowOverlap) throw new Error(`Mobile settings layout is not full-screen, categorized, and contained: ${JSON.stringify(mobileSettingsLayout)}`);
+await settingsDialog.locator('.catalog-item').first().getByRole('button', { name: '編輯' }).click();
+catalogEditor = settingsDialog.locator('.catalog-edit-layer');
+await catalogEditor.getByRole('heading', { name: '編輯帳戶' }).waitFor();
+const mobileEditorLayer = await catalogEditor.evaluate(element => {
+  const layer = element.getBoundingClientRect();
+  const panel = element.querySelector('.catalog-edit-panel').getBoundingClientRect();
+  return { layerWidth: layer.width, layerHeight: layer.height, panelContained: panel.left >= layer.left && panel.right <= layer.right && panel.top >= layer.top && panel.bottom <= layer.bottom, bottomGap: layer.bottom - panel.bottom };
+});
+if (Math.abs(mobileEditorLayer.layerWidth - 423) > 1 || Math.abs(mobileEditorLayer.layerHeight - 822) > 1 || !mobileEditorLayer.panelContained || mobileEditorLayer.bottomGap < 11) throw new Error(`Mobile catalog editor is clipped or not presented as a bottom sheet: ${JSON.stringify(mobileEditorLayer)}`);
 if (process.env.SETTINGS_MOBILE_SHOT) await page.screenshot({ path: process.env.SETTINGS_MOBILE_SHOT, fullPage: true });
+await catalogEditor.getByRole('button', { name: '取消' }).click();
 await settingsDialog.getByRole('button', { name: '關閉' }).click();
 const accountSelect = page.locator('.quick-form select[name="account"]');
 await accountSelect.selectOption({ label: '小姐姐VISA' });
