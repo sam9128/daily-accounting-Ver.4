@@ -93,6 +93,13 @@ export function alignTransactionsToCatalog(records, catalog, timestamp = new Dat
   });
 }
 
-export const catalogUsage = (records, field, name) => records.filter(record => !record.deleted && key(record[field]) === key(name)).length;
+export const catalogUsage = (records, field, name, aliases = []) => {
+  const names = new Set([name, ...aliases].map(key));
+  return records.filter(record => {
+    if (record.deleted) return false;
+    if (names.has(key(record[field]))) return true;
+    return field === 'account' && [...names].some(accountName => key(record.reason) === key(`轉${accountName}`));
+  }).length;
+};
 export const sameCatalogName = (left, right) => key(left) === key(right);
 export const cleanCatalogName = clean;

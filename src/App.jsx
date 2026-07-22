@@ -223,8 +223,8 @@ export default function App() {
   const categories = categoryDefinitions.filter(item => !item.hidden).map(item => item.name);
   const allCategories = categoryDefinitions.map(item => item.name);
   const ledger = useMemo(() => calculate(transactions, allAccounts, undefined, categoryDefinitions), [transactions, allAccounts.join('\u0000'), categoryDefinitions]);
-  const accountUsage = useMemo(() => Object.fromEntries(catalog.accounts.map(item => [item.name, catalogUsage(transactions, 'account', item.name)])), [transactions, catalog.accounts]);
-  const categoryUsage = useMemo(() => Object.fromEntries(catalog.categories.map(item => [item.name, catalogUsage(transactions, 'category', item.name)])), [transactions, catalog.categories]);
+  const accountUsage = useMemo(() => Object.fromEntries(catalog.accounts.map(item => [item.name, catalogUsage(transactions, 'account', item.name, item.aliases)])), [transactions, catalog.accounts]);
+  const categoryUsage = useMemo(() => Object.fromEntries(catalog.categories.map(item => [item.name, catalogUsage(transactions, 'category', item.name, item.aliases)])), [transactions, catalog.categories]);
   const persistCatalog = useCallback(async value => { await put('settings', { key: 'catalog', value }); setSettings(current => ({ ...current, catalog: value })); }, []);
   const persistTransactions = useCallback(async records => { await putMany('transactions', records); setTransactions(records); }, []);
 
@@ -339,6 +339,21 @@ export default function App() {
     return true;
   };
 
+  const deleteAccount = async id => {
+    const current = catalog.accounts.find(item => item.id === id);
+    if (!current?.hidden) { setNotice('請先隱藏帳戶，再進行永久刪除。'); return false; }
+    const usage = catalogUsage(transactions, 'account', current.name, current.aliases);
+    if (usage) { setNotice(`帳戶「${current.name}」仍影響 ${usage} 筆流水，無法刪除。`); return false; }
+    if (!window.confirm(`永久刪除帳戶「${current.name}」？\n此動作無法復原。`)) return false;
+    const next = { ...catalog, updatedAt: new Date().toISOString(), accounts: catalog.accounts.filter(item => item.id !== id) };
+    await persistCatalog(next);
+    const fallback = next.accounts.find(item => !item.hidden)?.name;
+    const nextPreferences = { ...preferences, lastAccount: preferences.lastAccount === current.name ? fallback : preferences.lastAccount };
+    setPreferences(nextPreferences); savePreferences(nextPreferences);
+    setNotice(`已永久刪除未被流水使用的帳戶「${current.name}」。`);
+    return true;
+  };
+
   const addCategory = async (name, investment) => {
     const value = cleanCatalogName(name);
     if (!value) { setNotice('請輸入分類名稱。'); return false; }
@@ -381,6 +396,21 @@ export default function App() {
     const next = { ...catalog, updatedAt: new Date().toISOString(), categories: catalog.categories.map(item => item.id === id ? { ...item, hidden } : item) };
     await persistCatalog(next);
     setNotice(hidden ? `已隱藏分類「${current.name}」。` : `已重新開啟分類「${current.name}」。`);
+    return true;
+  };
+
+  const deleteCategory = async id => {
+    const current = catalog.categories.find(item => item.id === id);
+    if (!current?.hidden) { setNotice('請先隱藏分類，再進行永久刪除。'); return false; }
+    const usage = catalogUsage(transactions, 'category', current.name, current.aliases);
+    if (usage) { setNotice(`分類「${current.name}」仍影響 ${usage} 筆流水，無法刪除。`); return false; }
+    if (!window.confirm(`永久刪除分類「${current.name}」？\n此動作無法復原。`)) return false;
+    const next = { ...catalog, updatedAt: new Date().toISOString(), categories: catalog.categories.filter(item => item.id !== id) };
+    await persistCatalog(next);
+    const fallback = next.categories.find(item => !item.hidden)?.name;
+    const nextPreferences = { ...preferences, lastCategory: preferences.lastCategory === current.name ? fallback : preferences.lastCategory };
+    setPreferences(nextPreferences); savePreferences(nextPreferences);
+    setNotice(`已永久刪除未被流水使用的分類「${current.name}」。`);
     return true;
   };
 
@@ -536,7 +566,7 @@ export default function App() {
     <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small><span className="daily"><b>日支出</b><span>{plainMoney(ledger.day.total)}</span></span><span className="monthly"><b>月收入</b><span>{plainMoney(ledger.month.save)}</span></span></small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
     <section className="workspace grid"><QuickTransactionForm accounts={accounts} categories={categories} preferences={preferences} selectedAccount={selectedAccount} onAccountChange={setSelectedAccount} onSave={addTransaction} /><section id="transactions" className="recent-flow"><div className="section-heading"><div><h2>近期交易</h2><small>顯示 {Math.min(16, ledger.rows.length)}／共 {ledger.rows.length} 筆</small></div><button onClick={() => setStatsOpen(true)}>查看全部流水</button></div><FlowRows records={ledger.rows.slice(-16).reverse()} onEdit={record => setEditing(record)} /></section></section>
     <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button className="mobile-settings" onClick={() => setSettingsOpen(true)} aria-label="設定"><GearIcon /><span>設定</span></button></nav>
-    {settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => { setStatsOpen(false); setSettingsOpen(true); }} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
+    {settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => { setStatsOpen(false); setSettingsOpen(true); }} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main>;
 }

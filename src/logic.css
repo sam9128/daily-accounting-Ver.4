@@ -118,6 +118,7 @@
 .catalog-actions button { min-height: 34px; padding: 6px 10px; border: 1px solid #3f4244; border-radius: 9px; background: transparent; color: #b8bcbe; font-size: 11px; font-weight: 650; }
 .catalog-actions .catalog-hide { border-color: #56373a; color: #d58c92; }
 .catalog-actions .catalog-restore { border-color: #3c5147; color: #91bea8; }
+.catalog-actions .catalog-delete { border-color: #674045; background: #2a1d1f; color: #e39aa1; }
 .catalog-edit-layer { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; overflow-y: auto; overscroll-behavior: contain; background: #08090add; backdrop-filter: blur(7px); }
 .catalog-edit-panel { width: min(440px, 100%); padding: 22px; border: 1px solid #45494c; border-radius: 18px; background: #1b1c1e; box-shadow: 0 24px 70px #000c; }
 .catalog-edit-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }

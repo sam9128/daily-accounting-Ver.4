@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { alignTransactionsToCatalog, catalogFromBackup, mergeCatalog, normalizeCatalog, renameTransactionReferences } from '../src/lib/catalog.js';
+import { alignTransactionsToCatalog, catalogFromBackup, catalogUsage, mergeCatalog, normalizeCatalog, renameTransactionReferences } from '../src/lib/catalog.js';
 
 const legacy = normalizeCatalog(null, { accounts: ['現金'], categories: [{ name: '餐飲', investment: false }] });
 assert.equal(legacy.accounts[0].name, '現金');
@@ -23,6 +23,10 @@ assert.equal(aligned[0].category, '日常餐飲');
 assert.equal(aligned[0].reason, '轉生活帳戶');
 assert.equal(catalog.accounts[0].hidden, true);
 assert.equal(catalog.categories[0].investment, true);
+assert.equal(catalogUsage([transaction], 'account', '生活帳戶', ['現金']), 1);
+assert.equal(catalogUsage([{ ...transaction, account: '其他帳戶' }], 'account', '生活帳戶', ['現金']), 1, 'Transfer targets must block account deletion.');
+assert.equal(catalogUsage([{ ...transaction, account: '其他帳戶', reason: '', deleted: true }], 'account', '生活帳戶', ['現金']), 0, 'Deleted rows must not block catalog cleanup.');
+assert.equal(catalogUsage([transaction], 'category', '日常餐飲', ['餐飲']), 1);
 
 const older = { ...catalog, updatedAt: '2026-02-01T00:00:00.000Z' };
 assert.equal(mergeCatalog(catalog, older), catalog);

@@ -4,7 +4,7 @@ export function GearIcon() {
   return <svg className="gear-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Z"/><path d="M19.1 13.2a7.7 7.7 0 0 0 .05-1.2 7.7 7.7 0 0 0-.05-1.2l2-1.55-2-3.46-2.45.98a8.2 8.2 0 0 0-2.08-1.2L14.2 3h-4l-.38 2.57a8.2 8.2 0 0 0-2.08 1.2L5.3 5.79l-2 3.46 2 1.55A7.7 7.7 0 0 0 5.25 12c0 .4.03.8.08 1.2l-2 1.55 2 3.46 2.44-.98c.63.5 1.33.9 2.08 1.2L10.2 21h4l.38-2.57a8.2 8.2 0 0 0 2.08-1.2l2.45.98 2-3.46-2-1.55Z"/></svg>;
 }
 
-function CatalogItem({ item, type, usage, onEdit, onHide, onRestore }) {
+function CatalogItem({ item, type, usage, onEdit, onHide, onRestore, onDelete }) {
   return <article className={`catalog-item${item.hidden ? ' is-hidden' : ''}`}>
     <div className="catalog-copy">
       <strong>{item.name}</strong>
@@ -12,13 +12,13 @@ function CatalogItem({ item, type, usage, onEdit, onHide, onRestore }) {
     </div>
     <div className="catalog-actions">
       {item.hidden
-        ? <button className="catalog-restore" type="button" onClick={() => onRestore(item.id)}>重新開啟</button>
+        ? <><button className="catalog-restore" type="button" onClick={() => onRestore(item.id)}>重新開啟</button>{usage === 0 && <button className="catalog-delete" type="button" onClick={() => onDelete(item.id)}>永久刪除</button>}</>
         : <><button type="button" onClick={() => onEdit(item)}>編輯</button><button className="catalog-hide" type="button" onClick={() => onHide(item.id)}>隱藏</button></>}
     </div>
   </article>;
 }
 
-function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore }) {
+function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore, onDelete }) {
   const [name, setName] = useState('');
   const [investment, setInvestment] = useState(false);
   const active = items.filter(item => !item.hidden);
@@ -35,8 +35,8 @@ function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore }
       {type === 'category' && <label className="new-investment"><input type="checkbox" checked={investment} onChange={event => setInvestment(event.target.checked)} /><span>設為投資項目</span></label>}
       <button className="primary">新增</button>
     </form>
-    <div className="catalog-list" aria-label={`使用中的${noun}`}>{active.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} />)}</div>
-    {hidden.length > 0 && <details className="hidden-catalog"><summary>已隱藏的{noun} <span>{hidden.length}</span></summary><div className="catalog-list">{hidden.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} />)}</div></details>}
+    <div className="catalog-list" aria-label={`使用中的${noun}`}>{active.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} onDelete={onDelete} />)}</div>
+    {hidden.length > 0 && <details className="hidden-catalog"><summary>已隱藏的{noun} <span>{hidden.length}</span></summary><div className="catalog-list">{hidden.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} onDelete={onDelete} />)}</div></details>}
   </section>;
 }
 
@@ -97,8 +97,8 @@ export default function SettingsDialog(props) {
       <header className="settings-header"><div className="settings-title"><GearIcon /><div><h2 id="settings-title">設定</h2><small>帳本結構與私密同步</small></div></div><button className="settings-close" onClick={props.onClose} aria-label="關閉">×</button></header>
       <nav className="settings-tabs" aria-label="設定分類">{sections.map(([value, label]) => <button className={section === value ? 'active' : ''} key={value} onClick={() => { closeEditor(); setSection(value); }}>{label}</button>)}</nav>
       <div className="settings-body">
-        {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} />}
-        {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} />}
+        {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} onDelete={props.onDeleteAccount} />}
+        {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onDelete={props.onDeleteCategory} />}
         {section === 'sync' && <SyncSection {...props} />}
       </div>
     </div>
