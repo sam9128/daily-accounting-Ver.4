@@ -70,6 +70,29 @@ const protrudingAccountText = await page.locator('.accounts > div > button').eva
   return children.some(child => child.left < card.left - .5 || child.right > card.right + .5 || child.top < card.top - .5 || child.bottom > card.bottom + .5) ? [index] : [];
 }));
 if (protrudingAccountText.length) throw new Error(`Account text protrudes outside cards: ${protrudingAccountText.join(', ')}`);
+const desktopHomePalette = await page.evaluate(() => {
+  const style = selector => getComputedStyle(document.querySelector(selector));
+  const daily = document.querySelector('.total-card .daily').getBoundingClientRect();
+  const dailyValue = document.querySelector('.total-card .daily > span').getBoundingClientRect();
+  const monthlyValue = document.querySelector('.total-card .monthly > span').getBoundingClientRect();
+  return {
+    totalBackground: style('.total-card').backgroundColor,
+    totalBorder: style('.total-card').borderColor,
+    accountBackground: style('.accounts > div > button').backgroundColor,
+    formBackground: style('.quick-form').backgroundColor,
+    formBorder: style('.quick-form').borderColor,
+    fieldBackground: style('.quick-form input').backgroundColor,
+    fieldBorder: style('.quick-form input').borderColor,
+    expenseLabel: style('.quick-form .expense').color,
+    incomeLabel: style('.quick-form .income').color,
+    dailyColor: style('.total-card .daily').color,
+    monthlyColor: style('.total-card .monthly').color,
+    dailyDisplay: style('.total-card .daily').display,
+    valueAlignment: Math.abs(dailyValue.right - monthlyValue.right),
+    rowWidth: daily.width,
+  };
+});
+if (desktopHomePalette.dailyDisplay !== 'grid' || desktopHomePalette.valueAlignment > 1 || desktopHomePalette.rowWidth < 100 || desktopHomePalette.dailyColor !== 'rgb(255, 59, 92)' || desktopHomePalette.monthlyColor !== 'rgb(19, 214, 160)') throw new Error(`Desktop total-card rows do not match the mobile format: ${JSON.stringify(desktopHomePalette)}`);
 await page.getByText('分類項目', { exact: true }).last().waitFor();
 await page.locator('.toast').waitFor({ state: 'detached', timeout: 5000 });
 await page.screenshot({ path: process.env.DESKTOP_SHOT || '.test-output/desktop.png', fullPage: true });
@@ -169,6 +192,23 @@ await page.setViewportSize({ width: 423, height: 822 });
 await page.locator('input[name="date"]').waitFor();
 await page.getByRole('button', { name: /總計餘額/ }).waitFor();
 await page.getByRole('button', { name: /零用金/ }).first().waitFor();
+const mobileHomePalette = await page.evaluate(() => {
+  const style = selector => getComputedStyle(document.querySelector(selector));
+  return {
+    totalBackground: style('.total-card').backgroundColor,
+    totalBorder: style('.total-card').borderColor,
+    accountBackground: style('.accounts > div > button').backgroundColor,
+    formBackground: style('.quick-form').backgroundColor,
+    formBorder: style('.quick-form').borderColor,
+    fieldBackground: style('.quick-form input').backgroundColor,
+    fieldBorder: style('.quick-form input').borderColor,
+    expenseLabel: style('.quick-form .expense').color,
+    incomeLabel: style('.quick-form .income').color,
+    dailyColor: style('.total-card .daily').color,
+    monthlyColor: style('.total-card .monthly').color,
+  };
+});
+for (const key of Object.keys(mobileHomePalette)) if (mobileHomePalette[key] !== desktopHomePalette[key]) throw new Error(`Desktop/mobile home palette differs for ${key}: ${desktopHomePalette[key]} vs ${mobileHomePalette[key]}`);
 await page.getByRole('button', { name: /總計餘額/ }).click();
 await page.getByRole('button', { name: '設定' }).click();
 await settingsDialog.getByRole('heading', { name: '設定', exact: true }).waitFor();

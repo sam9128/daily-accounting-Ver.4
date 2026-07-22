@@ -83,23 +83,8 @@
 
   .desktop-value { display: none; }
   .mobile-value { display: inline; }
-  .total-card small > .mobile-value { display: grid; gap: 1px; }
   .total-card small .daily,
-  .total-card small .monthly {
-    display: grid;
-    grid-template-columns: auto 6ch;
-    justify-content: end;
-    gap: 6px;
-    font-variant-numeric: tabular-nums;
-  }
-  .total-card small .daily { color: #ff3b5c; }
-  .total-card small .monthly { color: #13d6a0; }
-  .total-card small .daily b,
-  .total-card small .monthly b {
-    min-width: 0;
-    margin: 0;
-    color: inherit !important;
-  }
+  .total-card small .monthly { gap: 6px; }
 
   .accounts {
     margin: 0 -14px 14px;
@@ -215,8 +200,8 @@
     font-size: 24px;
   }
 
-  .quick-form .expense { color: #d99a9a; }
-  .quick-form .income { color: #9fc5aa; }
+  .quick-form .expense { color: var(--expense-muted); }
+  .quick-form .income { color: var(--income-muted); }
   .quick-categories { display: none; }
 
   .quick-form .primary {
