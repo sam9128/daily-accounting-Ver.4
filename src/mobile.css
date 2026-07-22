@@ -367,6 +367,22 @@
   .catalog-edit-layer { place-items: end center; padding: 12px 12px max(12px, env(safe-area-inset-bottom)); background: #08090ae8; }
   .catalog-edit-panel { width: 100%; padding: 19px 16px 16px; border-radius: 20px; }
   .catalog-edit-panel > p { margin-top: 16px; }
+  html.keyboard-open .settings-dialog {
+    inset: var(--visual-offset-top, 0px) 0 auto;
+    height: var(--visual-height, 100dvh);
+    max-height: var(--visual-height, 100dvh);
+  }
+  html.keyboard-open .catalog-edit-layer {
+    align-items: end;
+    min-height: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  html.keyboard-open .catalog-edit-panel {
+    max-height: calc(var(--visual-height, 100dvh) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .settings-card { grid-template-columns: 1fr; padding: 16px; }
   .settings-card > button, .settings-card > .primary { width: 100%; }
 }

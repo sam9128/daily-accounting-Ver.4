@@ -4,6 +4,33 @@ const executablePath = process.env.CHROME_BIN;
 if (!executablePath) throw new Error('Set CHROME_BIN to a Chromium/Chrome executable before running test:e2e.');
 const browser = await chromium.launch({ headless: true, executablePath });
 const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+let driveUploads = 0;
+const waitForNode = async (predicate, message, timeout = 5000) => {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await page.waitForTimeout(50);
+  }
+  throw new Error(message);
+};
+await page.addInitScript(() => {
+  window.__driveTokenRequests = [];
+  window.google = { accounts: { oauth2: { initTokenClient: config => ({
+    requestAccessToken: options => {
+      window.__driveTokenRequests.push(options?.prompt ?? '(default)');
+      queueMicrotask(() => config.callback({ access_token: 'browser-test-token', expires_in: 3600 }));
+    },
+  }) } } };
+});
+await page.route('https://www.googleapis.com/**', async route => {
+  const request = route.request();
+  if (request.method() === 'GET' && request.url().includes('/drive/v3/files?')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ files: [] }) });
+  if (request.url().includes('/upload/drive/v3/files')) {
+    driveUploads += 1;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'browser-backup' }) });
+  }
+  return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+});
 const longPress = async locator => {
   const box = await locator.boundingBox();
   if (!box) throw new Error('Cannot long-press an invisible flow row.');
@@ -91,13 +118,21 @@ await settingsDialog.locator('.catalog-add').getByRole('button', { name: '新增
 managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '零資料分類' });
 page.once('dialog', dialog => dialog.accept());
 await managedItem.getByRole('button', { name: '隱藏' }).click();
-await settingsDialog.getByRole('button', { name: '關閉' }).click();
+await settingsDialog.getByRole('button', { name: '資料', exact: true }).click();
+await settingsDialog.getByRole('button', { name: '登入並同步' }).click();
+await settingsDialog.waitFor({ state: 'detached' });
+await waitForNode(() => driveUploads === 1, 'Initial Drive sync did not upload a backup.');
+const initialTokenPrompts = await page.evaluate(() => window.__driveTokenRequests);
+if (initialTokenPrompts.length !== 1 || initialTokenPrompts[0] !== 'select_account') throw new Error(`Manual Drive connection did not use one account-selection request: ${JSON.stringify(initialTokenPrompts)}`);
 
 await page.locator('.quick-categories').getByRole('button', { name: '測試投資', exact: true }).click();
 await page.locator('input[name="reason"]').fill('自訂投資測試');
 await page.locator('input[name="expense"]').fill('25');
 await page.getByRole('button', { name: /確認送出/ }).click();
-await page.getByText('已儲存到這台裝置。').waitFor();
+await page.getByText(/已儲存到這台裝置/).waitFor();
+await waitForNode(() => driveUploads === 2, 'Submitting a transaction did not trigger automatic Drive sync.');
+const reusedTokenPrompts = await page.evaluate(() => window.__driveTokenRequests);
+if (reusedTokenPrompts.length !== 1) throw new Error(`A fresh Drive token was not reused for automatic sync: ${JSON.stringify(reusedTokenPrompts)}`);
 await page.getByRole('button', { name: /總計餘額/ }).click();
 await page.getByRole('button', { name: '設定' }).click();
 await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
@@ -160,7 +195,21 @@ const mobileEditorLayer = await catalogEditor.evaluate(element => {
 });
 if (Math.abs(mobileEditorLayer.layerWidth - 423) > 1 || Math.abs(mobileEditorLayer.layerHeight - 822) > 1 || !mobileEditorLayer.panelContained || mobileEditorLayer.bottomGap < 11) throw new Error(`Mobile catalog editor is clipped or not presented as a bottom sheet: ${JSON.stringify(mobileEditorLayer)}`);
 if (process.env.SETTINGS_MOBILE_SHOT) await page.screenshot({ path: process.env.SETTINGS_MOBILE_SHOT, fullPage: true });
+await catalogEditor.getByLabel('新的帳戶名稱').focus();
+await page.setViewportSize({ width: 423, height: 500 });
+await page.waitForFunction(() => document.documentElement.classList.contains('keyboard-open'));
+const keyboardEditorLayout = await catalogEditor.evaluate(element => {
+  const settings = element.closest('.settings-dialog').getBoundingClientRect();
+  const panel = element.querySelector('.catalog-edit-panel').getBoundingClientRect();
+  const input = element.querySelector('input').getBoundingClientRect();
+  const actions = element.querySelector('.catalog-edit-actions').getBoundingClientRect();
+  return { settingsTop: settings.top, settingsBottom: settings.bottom, panelTop: panel.top, panelBottom: panel.bottom, inputTop: input.top, inputBottom: input.bottom, actionsTop: actions.top, actionsBottom: actions.bottom };
+});
+if (keyboardEditorLayout.settingsTop < -1 || keyboardEditorLayout.settingsBottom > 501 || keyboardEditorLayout.panelTop < -1 || keyboardEditorLayout.panelBottom > 501 || keyboardEditorLayout.inputTop < 0 || keyboardEditorLayout.inputBottom > 500 || keyboardEditorLayout.actionsTop < 0 || keyboardEditorLayout.actionsBottom > 500) throw new Error(`Settings editor content is obscured by the simulated keyboard: ${JSON.stringify(keyboardEditorLayout)}`);
+if (process.env.SETTINGS_KEYBOARD_SHOT) await page.screenshot({ path: process.env.SETTINGS_KEYBOARD_SHOT, fullPage: true });
 await catalogEditor.getByRole('button', { name: '取消' }).click();
+await page.setViewportSize({ width: 423, height: 822 });
+await page.waitForFunction(() => !document.documentElement.classList.contains('keyboard-open'));
 await settingsDialog.getByRole('button', { name: '關閉' }).click();
 const accountSelect = page.locator('.quick-form select[name="account"]');
 await accountSelect.selectOption({ label: '小姐姐VISA' });
@@ -228,8 +277,12 @@ await page.waitForFunction(() => !document.documentElement.classList.contains('k
 
 await page.setViewportSize({ width: 1440, height: 960 });
 await page.locator('input[name="expense"]').fill('240');
+const uploadsBeforeReloadedSubmit = driveUploads;
 await page.getByRole('button', { name: /確認送出/ }).click();
-await page.getByText('已儲存到這台裝置。').waitFor();
+await page.getByText(/已儲存到這台裝置/).waitFor();
+await waitForNode(() => driveUploads > uploadsBeforeReloadedSubmit, 'Automatic Drive sync did not renew authorization after reload.');
+const renewedTokenPrompts = await page.evaluate(() => window.__driveTokenRequests);
+if (renewedTokenPrompts.length !== 1 || renewedTokenPrompts[0] !== '') throw new Error(`Reloaded automatic sync did not request a returning-user token from the submit gesture: ${JSON.stringify(renewedTokenPrompts)}`);
 await page.reload({ waitUntil: 'networkidle' });
 await page.getByText('240', { exact: false }).first().waitFor();
 await page.getByRole('button', { name: /總計餘額/ }).click();

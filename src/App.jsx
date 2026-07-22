@@ -3,7 +3,7 @@ import SettingsDialog, { GearIcon } from './components/SettingsDialog.jsx';
 import { all, initializeDatabase, put, putMany, settingsObject } from './lib/db.js';
 import { alignTransactionsToCatalog, catalogFromBackup, catalogUsage, cleanCatalogName, mergeCatalog, normalizeCatalog, renameTransactionReferences, sameCatalogName } from './lib/catalog.js';
 import { calculate, defaultAccounts, num } from './lib/ledger.js';
-import { connectDrive, downloadBackup, mergeTransactions, uploadBackup } from './lib/drive.js';
+import { connectDrive, downloadBackup, mergeTransactions, prepareDrive, uploadBackup } from './lib/drive.js';
 import { loadPreferences, savePreferences } from './lib/preferences.js';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -212,6 +212,7 @@ export default function App() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const accountRailRef = useRef(null);
+  const driveSyncQueueRef = useRef(Promise.resolve());
   const catalog = useMemo(() => normalizeCatalog(settings.catalog, { accounts: settings.accounts, categories: settings.categories }), [settings.catalog, settings.accounts, settings.categories]);
   const accounts = catalog.accounts.filter(item => !item.hidden).map(item => item.name);
   const allAccounts = catalog.accounts.map(item => item.name);
@@ -253,6 +254,10 @@ export default function App() {
     const listener = () => setUpdate(true);
     window.addEventListener('book-update-ready', listener);
     return () => { active = false; window.removeEventListener('book-update-ready', listener); };
+  }, []);
+
+  useEffect(() => {
+    if (CLIENT_ID) prepareDrive().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -381,13 +386,32 @@ export default function App() {
 
   const addTransaction = async values => {
     if (!num(values.expense) && !num(values.income)) { setNotice('請填入支出或收入。'); return false; }
+    const automaticAuthorization = preferences.autoDriveSync && CLIENT_ID
+      ? connectDrive(CLIENT_ID, { interactive: false }).then(() => null, error => error)
+      : null;
     const record = { id: crypto.randomUUID(), sequence: Math.max(0, ...transactions.map(item => item.sequence || 0)) + 1, ...values, expense: num(values.expense), income: num(values.income), updatedAt: new Date().toISOString(), revision: 1, deleted: false };
     await put('transactions', record);
-    setTransactions(current => [...current, record]);
+    const localRecords = [...transactions, record];
+    setTransactions(localRecords);
     const next = { ...preferences, lastAccount: values.account, lastCategory: values.category };
     setPreferences(next); savePreferences(next);
-    setNotice('已儲存到這台裝置。');
+    setNotice(automaticAuthorization ? '已儲存到這台裝置，正在同步…' : '已儲存到這台裝置。');
     setMobileView('add');
+    if (automaticAuthorization) {
+      void automaticAuthorization.then(error => {
+        if (error) {
+          setNotice(`已保存在本機；${error.message || 'Google 登入未完成。'}`);
+          return;
+        }
+        setSyncing(true);
+        const task = driveSyncQueueRef.current.catch(() => {}).then(() => synchronizeDriveData(localRecords));
+        driveSyncQueueRef.current = task;
+        void task
+          .then(result => setNotice(`已自動同步 ${result.merged.length} 筆資料到 Drive。`))
+          .catch(syncError => setNotice(`已保存在本機；${syncError.message || 'Drive 自動同步未完成。'}`))
+          .finally(() => setSyncing(false));
+      });
+    }
     return true;
   };
 
@@ -425,21 +449,26 @@ export default function App() {
       setNotice(error.message || '無法讀取本機私密備份。');
     }
   };
+  const synchronizeDriveData = async localTransactions => {
+    const remote = await downloadBackup();
+    if (localTransactions.length === 0 && (!remote || remote.transactions.length === 0)) throw new Error('Google Drive 找不到可還原的帳本備份，請改用本機私密備份。');
+    const merged = mergeTransactions(localTransactions, remote?.transactions || []);
+    const syncedCatalog = mergeCatalog(catalog, remote ? catalogFromBackup(remote, merged) : null);
+    const aligned = alignTransactionsToCatalog(merged, syncedCatalog);
+    await persistTransactions(aligned);
+    await persistCatalog(syncedCatalog);
+    await uploadBackup({ schema: 6, catalog: syncedCatalog, accounts: syncedCatalog.accounts.map(item => item.name), categories: syncedCatalog.categories, transactions: aligned, catalogUpdatedAt: syncedCatalog.updatedAt, exportedAt: new Date().toISOString() });
+    const next = { ...loadPreferences(), lastDriveSync: new Date().toISOString(), autoDriveSync: true };
+    setPreferences(next); savePreferences(next);
+    return { remote, merged };
+  };
   const syncDrive = async () => {
     setSyncing(true);
     try {
-      await connectDrive(CLIENT_ID);
-      const remote = await downloadBackup();
-      if (transactions.length === 0 && (!remote || remote.transactions.length === 0)) throw new Error('Google Drive 找不到可還原的帳本備份，請改用本機私密備份。');
-      const merged = mergeTransactions(transactions, remote?.transactions || []);
-      const syncedCatalog = mergeCatalog(catalog, remote ? catalogFromBackup(remote, merged) : null);
-      const aligned = alignTransactionsToCatalog(merged, syncedCatalog);
-      await persistTransactions(aligned);
-      await persistCatalog(syncedCatalog);
-      await uploadBackup({ schema: 6, catalog: syncedCatalog, accounts: syncedCatalog.accounts.map(item => item.name), categories: syncedCatalog.categories, transactions: aligned, catalogUpdatedAt: syncedCatalog.updatedAt, exportedAt: new Date().toISOString() });
-      const next = { ...preferences, lastDriveSync: new Date().toISOString() };
-      setPreferences(next); savePreferences(next);
-      setNotice(remote ? `已合併 ${merged.length} 筆資料並同步到 Drive。` : '已在 Google Drive 建立第一份備份。');
+      await driveSyncQueueRef.current.catch(() => {});
+      await connectDrive(CLIENT_ID, { interactive: true });
+      const result = await synchronizeDriveData(transactions);
+      setNotice(result.remote ? `已合併 ${result.merged.length} 筆資料並同步到 Drive，之後送出交易會自動同步。` : '已在 Google Drive 建立第一份備份，之後送出交易會自動同步。');
       setSettingsOpen(false);
     } catch (error) { setNotice(error.message || '同步未完成，請稍後再試。'); }
     finally { setSyncing(false); }
@@ -453,7 +482,7 @@ export default function App() {
     <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small><span className="desktop-value"><b>日支出</b> {plainMoney(Math.abs(ledger.day.total))}<br /><b className="positive">月收入</b> {plainMoney(ledger.month.save)}</span><span className="mobile-value"><span className="daily"><b>日支出</b>{plainMoney(ledger.day.total)}</span><span className="monthly"><b>月收入</b>{plainMoney(ledger.month.save)}</span></span></small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
     <section className="workspace grid"><QuickTransactionForm accounts={accounts} categories={categories} preferences={preferences} selectedAccount={selectedAccount} onAccountChange={setSelectedAccount} onSave={addTransaction} /><section id="transactions" className="recent-flow"><div className="section-heading"><div><h2>近期交易</h2><small>顯示 {Math.min(16, ledger.rows.length)}／共 {ledger.rows.length} 筆</small></div><button onClick={() => setStatsOpen(true)}>查看全部流水</button></div><FlowRows records={ledger.rows.slice(-16).reverse()} onEdit={record => setEditing(record)} /></section></section>
     <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button className="mobile-settings" onClick={() => setSettingsOpen(true)} aria-label="設定"><GearIcon /><span>設定</span></button></nav>
-    {settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onAddCategory={addCategory} onRenameCategory={renameCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onToggleInvestment={toggleCategoryInvestment} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => { setStatsOpen(false); setSettingsOpen(true); }} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
+    {settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onAddCategory={addCategory} onRenameCategory={renameCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onToggleInvestment={toggleCategoryInvestment} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => { setStatsOpen(false); setSettingsOpen(true); }} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main>;
 }

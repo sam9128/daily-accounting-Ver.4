@@ -55,11 +55,11 @@ function CatalogEditor({ editor, draft, onDraftChange, onCancel, onSave }) {
   </div>;
 }
 
-function SyncSection({ isEmpty, driveConfigured, onBackup, onRestoreFile, onSync, syncing, lastSynced }) {
+function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, onBackup, onRestoreFile, onSync, syncing, lastSynced }) {
   return <section className="settings-section sync-settings" aria-labelledby="sync-settings-title">
     <div className="settings-section-heading"><div><h3 id="sync-settings-title">資料與同步</h3><p>{isEmpty ? '這台裝置尚無帳目，可從私密備份安全還原。' : 'IndexedDB 是主資料庫，Google Drive 保存私密備份。'}</p></div></div>
     <article className="settings-card"><div><strong>本機資料庫</strong><small>歷史帳目不包含在公開網站或 GitHub 原始碼中。</small></div>{isEmpty ? <label className="file-picker">從本機私密備份還原<input type="file" accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; if (file) onRestoreFile(file); event.target.value = ''; }} /></label> : <button onClick={onBackup}>下載安全備份</button>}</article>
-    <article className="settings-card"><div><strong>Google Drive</strong><small><i className={driveConfigured ? 'online' : 'offline'}></i>{driveConfigured ? '已設定，可登入同步' : '尚未設定 Google OAuth Client ID'}</small></div><button className="primary" disabled={!driveConfigured || syncing} onClick={onSync}>{syncing ? '正在安全處理…' : isEmpty ? '登入並私密還原' : '登入並同步'}</button>{lastSynced && <small className="last-sync">上次同步：{new Date(lastSynced).toLocaleString('zh-TW')}</small>}</article>
+    <article className="settings-card"><div><strong>Google Drive</strong><small><i className={driveConfigured ? 'online' : 'offline'}></i>{driveConfigured ? autoSyncEnabled ? '自動同步已開啟；送出交易後會備份' : '登入同步後將自動備份新交易' : '尚未設定 Google OAuth Client ID'}</small></div><button className="primary" disabled={!driveConfigured || syncing} onClick={onSync}>{syncing ? '正在安全處理…' : isEmpty ? '登入並私密還原' : autoSyncEnabled ? '立即同步' : '登入並同步'}</button>{lastSynced && <small className="last-sync">上次同步：{new Date(lastSynced).toLocaleString('zh-TW')}</small>}</article>
   </section>;
 }
 
