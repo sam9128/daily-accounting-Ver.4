@@ -102,6 +102,13 @@ await page.getByRole('heading', { name: '統計與流水' }).waitFor();
 await page.getByRole('button', { name: '設定' }).click();
 const settingsDialog = page.locator('.settings-dialog');
 await settingsDialog.getByRole('heading', { name: '設定', exact: true }).waitFor();
+await page.getByRole('heading', { name: '統計與流水' }).waitFor();
+const settingsLayer = await settingsDialog.evaluate(element => {
+  const box = element.getBoundingClientRect();
+  const top = document.elementFromPoint(box.left + box.width / 2, box.top + 8);
+  return { statsStillMounted: Boolean(document.querySelector('.stats-dialog')), settingsIsTopmost: Boolean(top && element.contains(top)) };
+});
+if (!settingsLayer.statsStillMounted || !settingsLayer.settingsIsTopmost) throw new Error(`Settings did not stay above the originating statistics page: ${JSON.stringify(settingsLayer)}`);
 await settingsDialog.getByRole('button', { name: '帳戶', exact: true }).click();
 await settingsDialog.getByLabel('新增帳戶').fill('測試帳戶');
 await settingsDialog.locator('.catalog-add').getByRole('button', { name: '新增', exact: true }).click();
@@ -155,6 +162,8 @@ await managedItem.getByRole('button', { name: '隱藏' }).click();
 await settingsDialog.getByRole('button', { name: '資料', exact: true }).click();
 await settingsDialog.getByRole('button', { name: '登入並同步' }).click();
 await settingsDialog.waitFor({ state: 'detached' });
+await page.getByRole('heading', { name: '統計與流水' }).waitFor();
+await page.locator('.stats-dialog').getByRole('button', { name: '關閉' }).click();
 await waitForNode(() => driveUploads === 1, 'Initial Drive sync did not upload a backup.');
 const initialTokenPrompts = await page.evaluate(() => window.__driveTokenRequests);
 if (initialTokenPrompts.length !== 1 || initialTokenPrompts[0] !== 'select_account') throw new Error(`Manual Drive connection did not use one account-selection request: ${JSON.stringify(initialTokenPrompts)}`);
@@ -173,7 +182,9 @@ await waitForNode(() => driveUploads > uploadsBeforeOnlineRetry, 'Returning onli
 const backgroundTokenPrompts = await page.evaluate(() => window.__driveTokenRequests);
 if (backgroundTokenPrompts.length !== 1) throw new Error(`Background sync did not reuse the in-memory Drive token: ${JSON.stringify(backgroundTokenPrompts)}`);
 await page.getByRole('button', { name: /總計餘額/ }).click();
-await page.getByRole('button', { name: '設定' }).click();
+const statsDialog = page.locator('.stats-dialog');
+await statsDialog.getByRole('heading', { name: '統計與流水' }).waitFor();
+await statsDialog.getByRole('button', { name: '設定' }).click();
 await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
 managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '測試投資' });
 await managedItem.getByText('1 筆流水', { exact: false }).waitFor();
@@ -185,8 +196,8 @@ managedItem = settingsDialog.locator('.catalog-item').filter({ hasText: '長期�
 page.once('dialog', dialog => dialog.accept());
 await managedItem.getByRole('button', { name: '隱藏' }).click();
 await settingsDialog.getByRole('button', { name: '關閉' }).click();
+await page.getByRole('heading', { name: '統計與流水' }).waitFor();
 await page.locator('.quick-form select[name="category"] option', { hasText: '長期投資' }).waitFor({ state: 'detached' });
-await page.getByRole('button', { name: /總計餘額/ }).click();
 await page.locator('.investment-stats').getByRole('button', { name: /長期投資/ }).waitFor();
 if (await page.locator('.stats-dialog .stat-row').filter({ hasText: '零資料分類' }).count()) throw new Error('Hidden zero-value category is visible in current-period statistics.');
 await page.getByRole('button', { name: '設定' }).click();
@@ -216,6 +227,8 @@ if (await settingsDialog.getByText('零資料分類', { exact: true }).count()) 
 await settingsDialog.getByRole('button', { name: '資料', exact: true }).click();
 await settingsDialog.getByText('等待下次送出或手動同步以續權', { exact: true }).waitFor();
 await settingsDialog.getByRole('button', { name: '關閉' }).click();
+await statsDialog.getByRole('heading', { name: '統計與流水' }).waitFor();
+await statsDialog.getByRole('button', { name: '關閉' }).click();
 
 await page.setViewportSize({ width: 900, height: 900 });
 let overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -225,6 +238,7 @@ await page.setViewportSize({ width: 423, height: 822 });
 await page.locator('input[name="date"]').waitFor();
 await page.getByRole('button', { name: /總計餘額/ }).waitFor();
 await page.getByRole('button', { name: /零用金/ }).first().waitFor();
+await page.mouse.move(422, 821);
 const mobileHomePalette = await page.evaluate(() => {
   const style = selector => getComputedStyle(document.querySelector(selector));
   return {
@@ -242,7 +256,7 @@ const mobileHomePalette = await page.evaluate(() => {
   };
 });
 for (const key of Object.keys(mobileHomePalette)) if (mobileHomePalette[key] !== desktopHomePalette[key]) throw new Error(`Desktop/mobile home palette differs for ${key}: ${desktopHomePalette[key]} vs ${mobileHomePalette[key]}`);
-await page.getByRole('button', { name: /總計餘額/ }).click();
+await page.locator('.total-card').click();
 await page.getByRole('button', { name: '設定' }).click();
 await settingsDialog.getByRole('heading', { name: '設定', exact: true }).waitFor();
 await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
@@ -455,6 +469,7 @@ await page.getByRole('button', { name: '設定' }).click();
 await page.locator('.settings-dialog').getByRole('button', { name: '資料', exact: true }).click();
 await page.getByRole('heading', { name: '資料與同步' }).waitFor();
 await page.getByRole('button', { name: '下載安全備份' }).waitFor();
-await page.getByRole('button', { name: '關閉' }).click();
+await page.locator('.settings-dialog').getByRole('button', { name: '關閉' }).click();
+await page.getByRole('heading', { name: '統計與流水' }).waitFor();
 if (consoleErrors.length) throw new Error(`Browser console errors:\n${consoleErrors.join('\n')}`);
 await browser.close();

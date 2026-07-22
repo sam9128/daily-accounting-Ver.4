@@ -84,7 +84,7 @@
 .edit-actions .danger { border: 1px solid #5d3539; background: #24191b; color: #e79199; }
 .edit-actions .danger:hover { border-color: #875057; background: #2e1d20; color: #f0a4aa; }
 
-.settings-dialog { isolation: isolate; width: min(920px, calc(100vw - 40px)); height: min(760px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); gap: 0 !important; padding: 0; overflow: hidden; border-color: #383b3d; border-radius: 22px; background: #161718; }
+.settings-dialog { isolation: isolate; z-index: 120; width: min(920px, calc(100vw - 40px)); height: min(760px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); gap: 0 !important; padding: 0; overflow: hidden; border-color: #383b3d; border-radius: 22px; background: #161718; }
 .settings-shell { min-width: 0; min-height: 0; display: grid; grid-template-rows: 72px 52px minmax(0, 1fr); }
 .settings-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid var(--line); }
 .settings-title { display: flex; align-items: center; gap: 13px; }
