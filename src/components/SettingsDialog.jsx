@@ -4,13 +4,12 @@ export function GearIcon() {
   return <svg className="gear-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Z"/><path d="M19.1 13.2a7.7 7.7 0 0 0 .05-1.2 7.7 7.7 0 0 0-.05-1.2l2-1.55-2-3.46-2.45.98a8.2 8.2 0 0 0-2.08-1.2L14.2 3h-4l-.38 2.57a8.2 8.2 0 0 0-2.08 1.2L5.3 5.79l-2 3.46 2 1.55A7.7 7.7 0 0 0 5.25 12c0 .4.03.8.08 1.2l-2 1.55 2 3.46 2.44-.98c.63.5 1.33.9 2.08 1.2L10.2 21h4l.38-2.57a8.2 8.2 0 0 0 2.08-1.2l2.45.98 2-3.46-2-1.55Z"/></svg>;
 }
 
-function CatalogItem({ item, type, usage, onEdit, onHide, onRestore, onToggleInvestment }) {
+function CatalogItem({ item, type, usage, onEdit, onHide, onRestore }) {
   return <article className={`catalog-item${item.hidden ? ' is-hidden' : ''}`}>
     <div className="catalog-copy">
       <strong>{item.name}</strong>
       <small>{usage ? `${usage} 筆流水` : '尚無流水'}{type === 'category' && <> · {item.investment ? '投資項目' : item.systemRole === 'saving' ? '儲蓄統計' : item.systemRole === 'transfer' ? '轉帳統計' : '一般分類'}</>}</small>
     </div>
-    {type === 'category' && !item.hidden && <label className="investment-toggle"><input type="checkbox" checked={item.investment} onChange={event => onToggleInvestment(item.id, event.target.checked)} /><span>投資</span></label>}
     <div className="catalog-actions">
       {item.hidden
         ? <button className="catalog-restore" type="button" onClick={() => onRestore(item.id)}>重新開啟</button>
@@ -19,7 +18,7 @@ function CatalogItem({ item, type, usage, onEdit, onHide, onRestore, onToggleInv
   </article>;
 }
 
-function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore, onToggleInvestment }) {
+function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore }) {
   const [name, setName] = useState('');
   const [investment, setInvestment] = useState(false);
   const active = items.filter(item => !item.hidden);
@@ -36,12 +35,12 @@ function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore, 
       {type === 'category' && <label className="new-investment"><input type="checkbox" checked={investment} onChange={event => setInvestment(event.target.checked)} /><span>設為投資項目</span></label>}
       <button className="primary">新增</button>
     </form>
-    <div className="catalog-list" aria-label={`使用中的${noun}`}>{active.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} onToggleInvestment={onToggleInvestment} />)}</div>
-    {hidden.length > 0 && <details className="hidden-catalog"><summary>已隱藏的{noun} <span>{hidden.length}</span></summary><div className="catalog-list">{hidden.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} onToggleInvestment={onToggleInvestment} />)}</div></details>}
+    <div className="catalog-list" aria-label={`使用中的${noun}`}>{active.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} />)}</div>
+    {hidden.length > 0 && <details className="hidden-catalog"><summary>已隱藏的{noun} <span>{hidden.length}</span></summary><div className="catalog-list">{hidden.map(item => <CatalogItem key={item.id} item={item} type={type} usage={usage[item.name] || 0} onEdit={item => onEdit(type, item)} onHide={onHide} onRestore={onRestore} />)}</div></details>}
   </section>;
 }
 
-function CatalogEditor({ editor, draft, onDraftChange, onCancel, onSave }) {
+function CatalogEditor({ editor, draft, investment, onDraftChange, onInvestmentChange, onCancel, onSave }) {
   const noun = editor.type === 'account' ? '帳戶' : '分類';
   return <div className="catalog-edit-layer" onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className="catalog-edit-panel" role="dialog" aria-modal="true" aria-labelledby="catalog-edit-title">
@@ -49,6 +48,7 @@ function CatalogEditor({ editor, draft, onDraftChange, onCancel, onSave }) {
       <p>目前名稱 <strong>{editor.item.name}</strong></p>
       <form onSubmit={onSave}>
         <label><span>新的{noun}名稱</span><input value={draft} onChange={event => onDraftChange(event.target.value)} maxLength="24" required autoFocus /></label>
+        {editor.type === 'category' && <label className="edit-investment"><input type="checkbox" checked={investment} onChange={event => onInvestmentChange(event.target.checked)} /><span>設為投資項目</span></label>}
         <div className="catalog-edit-actions"><button type="button" onClick={onCancel}>取消</button><button className="primary">儲存變更</button></div>
       </form>
     </section>
@@ -67,13 +67,16 @@ export default function SettingsDialog(props) {
   const [section, setSection] = useState(props.isEmpty ? 'sync' : 'accounts');
   const [editor, setEditor] = useState(null);
   const [draft, setDraft] = useState('');
+  const [investmentDraft, setInvestmentDraft] = useState(false);
   const sections = [['accounts', '帳戶'], ['categories', '分類'], ['sync', '資料']];
-  const beginEdit = (type, item) => { setEditor({ type, item }); setDraft(item.name); };
+  const beginEdit = (type, item) => { setEditor({ type, item }); setDraft(item.name); setInvestmentDraft(Boolean(item.investment)); };
   const closeEditor = () => setEditor(null);
   const saveEditor = async event => {
     event.preventDefault();
-    const rename = editor.type === 'account' ? props.onRenameAccount : props.onRenameCategory;
-    if (await rename(editor.item.id, draft)) closeEditor();
+    const saved = editor.type === 'account'
+      ? await props.onRenameAccount(editor.item.id, draft)
+      : await props.onUpdateCategory(editor.item.id, draft, investmentDraft);
+    if (saved) closeEditor();
   };
   useEffect(() => {
     if (!editor) return undefined;
@@ -87,10 +90,10 @@ export default function SettingsDialog(props) {
       <nav className="settings-tabs" aria-label="設定分類">{sections.map(([value, label]) => <button className={section === value ? 'active' : ''} key={value} onClick={() => { closeEditor(); setSection(value); }}>{label}</button>)}</nav>
       <div className="settings-body">
         {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} />}
-        {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onToggleInvestment={props.onToggleInvestment} />}
+        {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} />}
         {section === 'sync' && <SyncSection {...props} />}
       </div>
     </div>
-    {editor && <CatalogEditor editor={editor} draft={draft} onDraftChange={setDraft} onCancel={closeEditor} onSave={saveEditor} />}
+    {editor && <CatalogEditor editor={editor} draft={draft} investment={investmentDraft} onDraftChange={setDraft} onInvestmentChange={setInvestmentDraft} onCancel={closeEditor} onSave={saveEditor} />}
   </dialog>;
 }

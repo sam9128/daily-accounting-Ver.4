@@ -346,20 +346,26 @@ export default function App() {
     return true;
   };
 
-  const renameCategory = async (id, name) => {
+  const updateCategory = async (id, name, investment) => {
     const value = cleanCatalogName(name);
     const current = catalog.categories.find(item => item.id === id);
     if (!current || !value) { setNotice('請輸入分類名稱。'); return false; }
     if (catalogNameExists(catalog.categories, value, id)) { setNotice('已有相同名稱的分類。'); return false; }
-    if (current.name === value) return true;
+    const renamed = current.name !== value;
+    const investmentChanged = current.investment !== Boolean(investment);
+    if (!renamed && !investmentChanged) return true;
     const timestamp = new Date().toISOString();
-    const migrated = renameTransactionReferences(transactions, 'category', current.name, value, timestamp);
-    const next = { ...catalog, updatedAt: timestamp, categories: catalog.categories.map(item => item.id === id ? { ...item, name: value, aliases: [...new Set([...(item.aliases || []), current.name])] } : item) };
-    await persistTransactions(migrated);
+    const migrated = renamed ? renameTransactionReferences(transactions, 'category', current.name, value, timestamp) : transactions;
+    const next = { ...catalog, updatedAt: timestamp, categories: catalog.categories.map(item => item.id === id ? { ...item, name: value, investment: Boolean(investment), aliases: renamed ? [...new Set([...(item.aliases || []), current.name])] : item.aliases } : item) };
+    if (renamed) await persistTransactions(migrated);
     await persistCatalog(next);
-    const nextPreferences = { ...preferences, lastCategory: preferences.lastCategory === current.name ? value : preferences.lastCategory };
-    setPreferences(nextPreferences); savePreferences(nextPreferences);
-    setNotice(`分類已改名為「${value}」，相關流水已同步更新。`);
+    if (renamed) {
+      const nextPreferences = { ...preferences, lastCategory: preferences.lastCategory === current.name ? value : preferences.lastCategory };
+      setPreferences(nextPreferences); savePreferences(nextPreferences);
+    }
+    setNotice(renamed
+      ? `分類已更新為「${value}」${investmentChanged ? `，並設為${investment ? '投資項目' : '一般分類'}` : ''}。`
+      : `「${value}」已設為${investment ? '投資項目' : '一般分類'}。`);
     return true;
   };
 
@@ -372,15 +378,6 @@ export default function App() {
     const next = { ...catalog, updatedAt: new Date().toISOString(), categories: catalog.categories.map(item => item.id === id ? { ...item, hidden } : item) };
     await persistCatalog(next);
     setNotice(hidden ? `已隱藏分類「${current.name}」。` : `已重新開啟分類「${current.name}」。`);
-    return true;
-  };
-
-  const toggleCategoryInvestment = async (id, investment) => {
-    const current = catalog.categories.find(item => item.id === id);
-    if (!current) return false;
-    const next = { ...catalog, updatedAt: new Date().toISOString(), categories: catalog.categories.map(item => item.id === id ? { ...item, investment } : item) };
-    await persistCatalog(next);
-    setNotice(`「${current.name}」已設為${investment ? '投資項目' : '一般分類'}。`);
     return true;
   };
 
@@ -482,7 +479,7 @@ export default function App() {
     <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small><span className="daily"><b>日支出</b><span>{plainMoney(ledger.day.total)}</span></span><span className="monthly"><b>月收入</b><span>{plainMoney(ledger.month.save)}</span></span></small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
     <section className="workspace grid"><QuickTransactionForm accounts={accounts} categories={categories} preferences={preferences} selectedAccount={selectedAccount} onAccountChange={setSelectedAccount} onSave={addTransaction} /><section id="transactions" className="recent-flow"><div className="section-heading"><div><h2>近期交易</h2><small>顯示 {Math.min(16, ledger.rows.length)}／共 {ledger.rows.length} 筆</small></div><button onClick={() => setStatsOpen(true)}>查看全部流水</button></div><FlowRows records={ledger.rows.slice(-16).reverse()} onEdit={record => setEditing(record)} /></section></section>
     <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button className="mobile-settings" onClick={() => setSettingsOpen(true)} aria-label="設定"><GearIcon /><span>設定</span></button></nav>
-    {settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onAddCategory={addCategory} onRenameCategory={renameCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onToggleInvestment={toggleCategoryInvestment} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => { setStatsOpen(false); setSettingsOpen(true); }} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
+    {settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => { setStatsOpen(false); setSettingsOpen(true); }} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main>;
 }

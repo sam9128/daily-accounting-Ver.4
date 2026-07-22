@@ -346,7 +346,6 @@
   .catalog-add .new-investment { grid-column: 1; }
   .catalog-add .primary { grid-column: 2; }
   .catalog-item { grid-template-columns: minmax(0, 1fr) auto; gap: 9px; padding: 11px 10px 11px 13px; }
-  .investment-toggle { grid-column: 1; }
   .catalog-actions { grid-column: 2; grid-row: 1; flex-direction: row; }
   .catalog-actions button { min-width: 54px; padding-inline: 8px; }
   .catalog-edit-layer { place-items: end center; padding: 12px 12px max(12px, env(safe-area-inset-bottom)); background: #08090ae8; }

@@ -212,6 +212,36 @@ for (const key of Object.keys(mobileHomePalette)) if (mobileHomePalette[key] !==
 await page.getByRole('button', { name: /總計餘額/ }).click();
 await page.getByRole('button', { name: '設定' }).click();
 await settingsDialog.getByRole('heading', { name: '設定', exact: true }).waitFor();
+await settingsDialog.getByRole('button', { name: '分類', exact: true }).click();
+const mobileCategoryLayout = await settingsDialog.evaluate(element => {
+  const cards = [...element.querySelectorAll('.catalog-list .catalog-item')].filter(card => card.offsetParent !== null);
+  return {
+    cards: cards.length,
+    listToggles: cards.filter(card => card.querySelector('.investment-toggle')).length,
+    overlappingCards: cards.flatMap((card, index) => index < cards.length - 1 && card.getBoundingClientRect().bottom > cards[index + 1].getBoundingClientRect().top + 1 ? [index] : []),
+  };
+});
+if (!mobileCategoryLayout.cards || mobileCategoryLayout.listToggles || mobileCategoryLayout.overlappingCards.length) throw new Error(`Mobile category list still exposes investment checkboxes or overlaps: ${JSON.stringify(mobileCategoryLayout)}`);
+const foodCategoryCard = settingsDialog.locator('.catalog-item').filter({ hasText: /^食/ });
+await foodCategoryCard.getByRole('button', { name: '編輯' }).click();
+catalogEditor = settingsDialog.locator('.catalog-edit-layer');
+const foodInvestmentToggle = catalogEditor.getByRole('checkbox', { name: '設為投資項目' });
+await foodInvestmentToggle.check();
+const editInvestmentLayout = await catalogEditor.evaluate(element => {
+  const panel = element.querySelector('.catalog-edit-panel').getBoundingClientRect();
+  const control = element.querySelector('.edit-investment').getBoundingClientRect();
+  return { contained: control.left >= panel.left && control.right <= panel.right && control.top >= panel.top && control.bottom <= panel.bottom, height: control.height };
+});
+if (!editInvestmentLayout.contained || editInvestmentLayout.height < 44) throw new Error(`Investment option is not contained in the category editor: ${JSON.stringify(editInvestmentLayout)}`);
+if (process.env.CATEGORY_SETTINGS_MOBILE_SHOT) await page.screenshot({ path: process.env.CATEGORY_SETTINGS_MOBILE_SHOT, fullPage: true });
+await catalogEditor.getByRole('button', { name: '儲存變更' }).click();
+await foodCategoryCard.getByText('投資項目', { exact: false }).waitFor();
+await foodCategoryCard.getByRole('button', { name: '編輯' }).click();
+catalogEditor = settingsDialog.locator('.catalog-edit-layer');
+if (!await catalogEditor.getByRole('checkbox', { name: '設為投資項目' }).isChecked()) throw new Error('Saved category investment state was not restored in the editor.');
+await catalogEditor.getByRole('checkbox', { name: '設為投資項目' }).uncheck();
+await catalogEditor.getByRole('button', { name: '儲存變更' }).click();
+await settingsDialog.getByRole('button', { name: '帳戶', exact: true }).click();
 const mobileSettingsLayout = await settingsDialog.evaluate(element => ({
   width: element.getBoundingClientRect().width,
   height: element.getBoundingClientRect().height,
