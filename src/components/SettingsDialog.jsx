@@ -79,27 +79,24 @@ function CatalogEditor({ editor, draft, investment, onDraftChange, onInvestmentC
   </div>;
 }
 
-function InstallSection({ installer, onInstall }) {
+function InstallCard({ installer, onInstall }) {
   const { canInstall, installed, needsManualSteps } = installer;
-  return <section className="settings-section" aria-labelledby="install-settings-title">
-    <div className="settings-section-heading"><div><h3 id="install-settings-title">安裝手機版</h3><p>安裝後可離線記帳，開啟速度與原生 App 相同。</p></div></div>
-    <article className="settings-card">
-      <div>
-        <strong>加入主畫面</strong>
-        <small>{installed
-          ? '已安裝，目前正以獨立應用程式模式執行。'
-          : needsManualSteps
-            ? '在 Safari 點下方「分享」，選擇「加入主畫面」。'
-            : canInstall
-              ? '把日常記帳安裝成獨立應用程式，不再需要開瀏覽器。'
-              : '若沒有出現按鈕，可從瀏覽器選單選擇「安裝應用程式」或「加到主畫面」。'}</small>
-      </div>
-      {canInstall && <button className="primary" onClick={onInstall}>安裝應用程式</button>}
-    </article>
-  </section>;
+  return <article className="settings-card">
+    <div>
+      <strong>安裝手機版</strong>
+      <small>{installed
+        ? '已安裝，目前正以獨立應用程式模式執行。'
+        : needsManualSteps
+          ? '在 Safari 點下方「分享」，選擇「加入主畫面」。'
+          : canInstall
+            ? '安裝後可離線記帳，開啟速度與原生 App 相同。'
+            : '若沒有出現按鈕，可從瀏覽器選單選擇「安裝應用程式」或「加到主畫面」。'}</small>
+    </div>
+    {canInstall && <button className="primary" onClick={onInstall}>安裝應用程式</button>}
+  </article>;
 }
 
-function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSyncState, onBackup, onRestoreFile, onSync, syncing, lastSynced }) {
+function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSyncState, onBackup, onRestoreFile, onSync, syncing, lastSynced, installer, onInstall }) {
   const syncDescription = {
     preparing: '正在準備背景同步…',
     syncing: '正在背景合併並備份…',
@@ -112,6 +109,7 @@ function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSync
     <div className="settings-section-heading"><div><h3 id="sync-settings-title">資料與同步</h3><p>{isEmpty ? '這台裝置尚無帳目，可從私密備份安全還原。' : 'IndexedDB 是主資料庫，Google Drive 保存私密備份。'}</p></div></div>
     <article className="settings-card"><div><strong>本機資料庫</strong><small>歷史帳目不包含在公開網站或 GitHub 原始碼中。</small></div>{isEmpty ? <label className="file-picker">從本機私密備份還原<input type="file" accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; if (file) onRestoreFile(file); event.target.value = ''; }} /></label> : <button onClick={onBackup}>下載安全備份</button>}</article>
     <article className="settings-card"><div><strong>Google Drive</strong><small><i className={driveConfigured ? 'online' : 'offline'}></i>{driveConfigured ? syncDescription || (autoSyncEnabled ? '載入與送出交易後會自動嘗試同步' : '登入同步後將自動備份新交易') : '尚未設定 Google OAuth Client ID'}</small></div><button className="primary" disabled={!driveConfigured || syncing} onClick={onSync}>{syncing ? '正在安全處理…' : isEmpty ? '登入並私密還原' : autoSyncEnabled ? '立即同步' : '登入並同步'}</button>{lastSynced && <small className="last-sync">上次同步：{new Date(lastSynced).toLocaleString('zh-TW')}</small>}</article>
+    <InstallCard installer={installer} onInstall={onInstall} />
   </section>;
 }
 
@@ -143,7 +141,7 @@ export default function SettingsDialog(props) {
       <div className="settings-body">
         {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} onDelete={props.onDeleteAccount} onMove={props.onMoveAccount} />}
         {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onDelete={props.onDeleteCategory} onMove={props.onMoveCategory} />}
-        {section === 'sync' && <><InstallSection installer={props.installer} onInstall={props.onInstall} /><SyncSection {...props} /></>}
+        {section === 'sync' && <SyncSection {...props} />}
       </div>
     </div>
     {editor && <CatalogEditor editor={editor} draft={draft} investment={investmentDraft} onDraftChange={setDraft} onInvestmentChange={setInvestmentDraft} onCancel={closeEditor} onSave={saveEditor} />}
