@@ -79,6 +79,26 @@ function CatalogEditor({ editor, draft, investment, onDraftChange, onInvestmentC
   </div>;
 }
 
+function InstallSection({ installer, onInstall }) {
+  const { canInstall, installed, needsManualSteps } = installer;
+  return <section className="settings-section" aria-labelledby="install-settings-title">
+    <div className="settings-section-heading"><div><h3 id="install-settings-title">安裝手機版</h3><p>安裝後可離線記帳，開啟速度與原生 App 相同。</p></div></div>
+    <article className="settings-card">
+      <div>
+        <strong>加入主畫面</strong>
+        <small>{installed
+          ? '已安裝，目前正以獨立應用程式模式執行。'
+          : needsManualSteps
+            ? '在 Safari 點下方「分享」，選擇「加入主畫面」。'
+            : canInstall
+              ? '把日常記帳安裝成獨立應用程式，不再需要開瀏覽器。'
+              : '若沒有出現按鈕，可從瀏覽器選單選擇「安裝應用程式」或「加到主畫面」。'}</small>
+      </div>
+      {canInstall && <button className="primary" onClick={onInstall}>安裝應用程式</button>}
+    </article>
+  </section>;
+}
+
 function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSyncState, onBackup, onRestoreFile, onSync, syncing, lastSynced }) {
   const syncDescription = {
     preparing: '正在準備背景同步…',
@@ -123,7 +143,7 @@ export default function SettingsDialog(props) {
       <div className="settings-body">
         {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} onDelete={props.onDeleteAccount} onMove={props.onMoveAccount} />}
         {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onDelete={props.onDeleteCategory} onMove={props.onMoveCategory} />}
-        {section === 'sync' && <SyncSection {...props} />}
+        {section === 'sync' && <><InstallSection installer={props.installer} onInstall={props.onInstall} /><SyncSection {...props} /></>}
       </div>
     </div>
     {editor && <CatalogEditor editor={editor} draft={draft} investment={investmentDraft} onDraftChange={setDraft} onInvestmentChange={setInvestmentDraft} onCancel={closeEditor} onSave={saveEditor} />}

@@ -19,6 +19,37 @@ function downloadJson(payload) {
   URL.revokeObjectURL(url);
 }
 
+const standaloneNow = () => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+// iOS never fires beforeinstallprompt, so those users need the manual 分享 → 加入主畫面 route.
+const appleHandheld = () => /iP(hone|od|ad)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+function useInstallPrompt() {
+  const [prompt, setPrompt] = useState(null);
+  const [installed, setInstalled] = useState(standaloneNow);
+  useEffect(() => {
+    const capture = event => { event.preventDefault(); setPrompt(event); };
+    const markInstalled = () => { setPrompt(null); setInstalled(true); };
+    const standaloneQuery = window.matchMedia?.('(display-mode: standalone)');
+    const trackDisplayMode = event => setInstalled(event.matches);
+    window.addEventListener('beforeinstallprompt', capture);
+    window.addEventListener('appinstalled', markInstalled);
+    standaloneQuery?.addEventListener('change', trackDisplayMode);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', capture);
+      window.removeEventListener('appinstalled', markInstalled);
+      standaloneQuery?.removeEventListener('change', trackDisplayMode);
+    };
+  }, []);
+  const install = useCallback(async () => {
+    if (!prompt) return false;
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    setPrompt(null);
+    return outcome === 'accepted';
+  }, [prompt]);
+  return { canInstall: Boolean(prompt), installed, needsManualSteps: !prompt && !installed && appleHandheld(), install };
+}
+
 function QuickTransactionForm({ accounts, categories, preferences, selectedAccount, onAccountChange, onSave }) {
   const [form, setForm] = useState(() => blankForm(preferences, accounts, categories));
   useEffect(() => setForm(current => ({ ...current, account: accounts.includes(current.account) ? current.account : accounts[0] })), [accounts]);
@@ -218,6 +249,7 @@ export default function App() {
   const [selectedAccount, setSelectedAccount] = useState(defaultAccounts[0]);
   const [statsOpen, setStatsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const installer = useInstallPrompt();
   const accountRailRef = useRef(null);
   const driveSyncQueueRef = useRef(Promise.resolve());
   const backgroundSyncInFlightRef = useRef(null);
@@ -558,6 +590,11 @@ export default function App() {
     };
   }, [databaseReady, preferences.autoDriveSync, transactions, catalog.updatedAt]);
 
+  const installApp = async () => {
+    const accepted = await installer.install();
+    setNotice(accepted ? '正在安裝，稍後可從主畫面直接開啟。' : '已取消安裝，之後仍可從設定再安裝。');
+  };
+
   const syncDrive = async () => {
     setSyncing(true);
     setBackgroundSyncState('syncing');
@@ -580,7 +617,7 @@ export default function App() {
     <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small><span className="daily"><b>日支出</b><span>{plainMoney(ledger.day.total)}</span></span><span className="monthly"><b>月收入</b><span>{plainMoney(ledger.month.save)}</span></span></small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
     <section className="workspace grid"><QuickTransactionForm accounts={accounts} categories={categories} preferences={preferences} selectedAccount={selectedAccount} onAccountChange={setSelectedAccount} onSave={addTransaction} /><section id="transactions" className="recent-flow"><div className="section-heading"><div><h2>近期交易</h2><small>顯示 {Math.min(16, ledger.rows.length)}／共 {ledger.rows.length} 筆</small></div><button onClick={() => setStatsOpen(true)}>查看全部流水</button></div><FlowRows records={ledger.rows.slice(-16).reverse()} onEdit={record => setEditing(record)} /></section></section>
     <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button className="mobile-settings" onClick={() => setSettingsOpen(true)} aria-label="設定"><GearIcon /><span>設定</span></button></nav>
-    {statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => setSettingsOpen(true)} />}{settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onMoveAccount={(id, direction) => moveCatalogOrder('account', id, direction)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onMoveCategory={(id, direction) => moveCatalogOrder('category', id, direction)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
+    {statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => setSettingsOpen(true)} />}{settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onMoveAccount={(id, direction) => moveCatalogOrder('account', id, direction)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onMoveCategory={(id, direction) => moveCatalogOrder('category', id, direction)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} installer={installer} onInstall={installApp} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main>;
 }

@@ -20,6 +20,13 @@
 - 本機 JSON 安全備份仍可下載；試算表匯出功能留待後續實作。
 - 私密轉換檔請放在 `.private-data/`；該目錄已被 Git 忽略，禁止提交。
 
+## 安裝手機版（PWA）
+
+- 正式站以 standalone 模式安裝；Android／桌面 Chrome 會在設定 →「資料」→「安裝手機版」顯示安裝按鈕。
+- iOS 不支援 `beforeinstallprompt`，該卡片會改為提示 Safari「分享」→「加入主畫面」。
+- 圖示由 `logo.png` 產生，放在 `public/`：`pwa-192/512.png`（一般）、`pwa-maskable-192/512.png`（Android 適應式圖示）、`apple-touch-icon.png`、`favicon.png`。
+- 換 logo 時要同時更新這幾個檔案；Chrome 需要至少一張 192px 以上的 PNG 才會判定為可安裝。
+
 ## 本機開發
 
 ```bash
