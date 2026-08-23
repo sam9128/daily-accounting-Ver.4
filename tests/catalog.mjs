@@ -23,6 +23,12 @@ assert.equal(aligned[0].category, '日常餐飲');
 assert.equal(aligned[0].reason, '轉生活帳戶');
 assert.equal(catalog.accounts[0].hidden, true);
 assert.equal(catalog.categories[0].investment, true);
+assert.equal(catalog.categories[0].statsTag, '投資', 'Categories fall back to the default stats label.');
+assert.equal(
+  normalizeCatalog(null, { categories: [{ name: '房產', investment: true, statsTag: '資產' }] }).categories[0].statsTag,
+  '資產',
+  'A saved stats label survives normalisation.',
+);
 assert.equal(catalogUsage([transaction], 'account', '生活帳戶', ['現金']), 1);
 assert.equal(catalogUsage([{ ...transaction, account: '其他帳戶' }], 'account', '生活帳戶', ['現金']), 1, 'Transfer targets must block account deletion.');
 assert.equal(catalogUsage([{ ...transaction, account: '其他帳戶', reason: '', deleted: true }], 'account', '生活帳戶', ['現金']), 0, 'Deleted rows must not block catalog cleanup.');

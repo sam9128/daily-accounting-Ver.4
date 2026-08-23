@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SettingsDialog, { GearIcon } from './components/SettingsDialog.jsx';
 import { all, initializeDatabase, put, putMany, settingsObject } from './lib/db.js';
-import { alignTransactionsToCatalog, catalogFromBackup, catalogUsage, cleanCatalogName, mergeCatalog, moveCatalogEntry, normalizeCatalog, renameTransactionReferences, sameCatalogName } from './lib/catalog.js';
+import { alignTransactionsToCatalog, catalogFromBackup, catalogUsage, cleanCatalogName, defaultStatsTag, mergeCatalog, moveCatalogEntry, normalizeCatalog, renameTransactionReferences, sameCatalogName } from './lib/catalog.js';
 import { calculate, defaultAccounts, num } from './lib/ledger.js';
 import { connectDrive, downloadBackup, hasFreshDriveToken, mergeTransactions, prepareDrive, uploadBackup } from './lib/drive.js';
 import { loadPreferences, savePreferences } from './lib/preferences.js';
+import { findHomeMetric, homeMetricTone, maxHomeMetrics, moveHomeMetric, normalizeHomeMetrics } from './lib/metrics.js';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const money = value => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(value);
@@ -162,7 +163,7 @@ function StatsDialog({ ledger, accounts, categoryDefinitions, onClose, onEdit, o
   const [cursorDate, setCursorDate] = useState(today);
   const categories = categoryDefinitions.map(item => item.name);
   const expenseCategories = categoryDefinitions.filter(item => !item.investment && !item.systemRole).map(item => item.name);
-  const investmentCategories = categoryDefinitions.filter(item => item.investment).map(item => item.name);
+  const investmentDefinitions = categoryDefinitions.filter(item => item.investment);
   const hiddenCategories = new Set(categoryDefinitions.filter(item => item.hidden).map(item => item.name));
   const periodLedger = useMemo(() => calculate(ledger.rows, accounts, cursorDate, categoryDefinitions), [ledger.rows, accounts, cursorDate, categoryDefinitions]);
   const stats = mode === 'day' ? periodLedger.day : mode === 'year' ? periodLedger.year : periodLedger.month;
@@ -190,7 +191,7 @@ function StatsDialog({ ledger, accounts, categoryDefinitions, onClose, onEdit, o
     });
   }, [ledger.rows, cursorDate, mode]);
   const visibleExpenseCategories = expenseCategories.filter(item => !hiddenCategories.has(item) || Math.abs(stats.values[item]) > 0);
-  const visibleInvestmentCategories = investmentCategories.filter(item => !hiddenCategories.has(item) || Math.abs(stats.investments[item]) > 0);
+  const visibleInvestmentDefinitions = investmentDefinitions.filter(item => !item.hidden || Math.abs(stats.investments[item.name]) > 0);
   const amounts = visibleExpenseCategories.map(item => Math.abs(stats.values[item]));
   const totalSpent = amounts.reduce((sum, value) => sum + value, 0);
   let angle = 0;
@@ -218,7 +219,7 @@ function StatsDialog({ ledger, accounts, categoryDefinitions, onClose, onEdit, o
   const selectMode = nextMode => { setMode(nextMode); setExpandedCategory(''); };
   return <dialog open className="stats-dialog" aria-labelledby="stats-title">
     <header className="stats-header"><button className="stats-close" onClick={onClose} aria-label="關閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button><h2 id="stats-title">統計與流水</h2><div className="mode-tabs"><button className={mode === 'day' ? 'active' : ''} onClick={() => selectMode('day')}>日</button><button className={mode === 'month' ? 'active' : ''} onClick={() => selectMode('month')}>月</button><button className={mode === 'year' ? 'active' : ''} onClick={() => selectMode('year')}>年</button><button className={mode === 'all' ? 'active' : ''} onClick={() => selectMode('all')}>流水</button></div><button className="stats-settings" onClick={onSettings} aria-label="設定"><GearIcon /></button></header>
-    {mode !== 'all' ? <><div className="period-pager"><button onClick={() => movePeriod(-1)}>{previousPeriodLabel}</button><strong>{periodLabel}</strong><button onClick={() => movePeriod(1)}>{nextPeriodLabel}</button></div><section className="stats-content"><div className="stats-overview"><div className="donut" style={{ background: totalSpent ? `conic-gradient(${chart})` : '#292929' }}><div><span>支出</span><strong>{plainMoney(totalSpent)}</strong></div></div><div className="stat-summaries"><article><span>差額</span><strong>{plainMoney(stats.diff)}</strong></article><article><span>儲蓄</span><strong>{plainMoney(stats.save)}</strong></article></div></div><div className="stat-list">{visibleExpenseCategories.map((item, index) => <div className="stat-entry" key={item}><button className="stat-row" aria-expanded={expandedCategory === item} onClick={() => setExpandedCategory(current => current === item ? '' : item)}><i style={{ backgroundColor: chartColors[index % chartColors.length] }}></i><span>{item}</span><b>{plainMoney(Math.abs(stats.values[item]))}</b><small>{totalSpent ? `${(Math.abs(stats.values[item]) / totalSpent * 100).toFixed(1)}%` : '0.0%'}</small></button>{expandedCategory === item && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item)} onEdit={onEdit} showHint={false} /></div>}</div>)}</div><section className="investment-stats"><h3>帳目項目 <small>投資淨額 {plainMoney(stats.investmentTotal)} · 轉帳 {plainMoney(stats.transferTotal)}</small></h3>{visibleInvestmentCategories.map((item, index) => <div className="stat-entry" key={item}><button className="stat-row" aria-expanded={expandedCategory === item} onClick={() => setExpandedCategory(current => current === item ? '' : item)}><i style={{ backgroundColor: investmentColors[index % investmentColors.length] }}></i><span>{item}</span><b>{plainMoney(stats.investments[item])}</b><small>投資</small></button>{expandedCategory === item && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item)} onEdit={onEdit} showHint={false} /></div>}</div>)}{categoryDefinitions.filter(item => item.systemRole === 'transfer' && (!item.hidden || Math.abs(stats.transferTotal) > 0)).map(item => <div className="stat-entry" key={item.id}><button className="stat-row" aria-expanded={expandedCategory === item.name} onClick={() => setExpandedCategory(current => current === item.name ? '' : item.name)}><i className="transfer-color"></i><span>{item.name}</span><b>{plainMoney(stats.transferTotal)}</b><small>轉帳</small></button>{expandedCategory === item.name && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item.name)} onEdit={onEdit} showHint={false} /></div>}</div>)}</section></section></> : <section className="logs"><div className="filters"><input className="log-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="查詢流水" aria-label="查詢流水" /><select value={account} onChange={event => setAccount(event.target.value)}><option value="all">所有帳戶</option>{accounts.map(item => <option key={item}>{item}</option>)}</select><select value={category} onChange={event => setCategory(event.target.value)}><option value="all">所有分類</option>{categories.map(item => <option key={item}>{item}</option>)}</select></div><DesktopFlowLedger records={visible} rowDetails={ledger.rowDetails} onEdit={onEdit} /><div className="mobile-flow-records"><FlowRows records={visible} onEdit={onEdit} /></div></section>}
+    {mode !== 'all' ? <><div className="period-pager"><button onClick={() => movePeriod(-1)}>{previousPeriodLabel}</button><strong>{periodLabel}</strong><button onClick={() => movePeriod(1)}>{nextPeriodLabel}</button></div><section className="stats-content"><div className="stats-overview"><div className="donut" style={{ background: totalSpent ? `conic-gradient(${chart})` : '#292929' }}><div><span>支出</span><strong>{plainMoney(totalSpent)}</strong></div></div><div className="stat-summaries"><article><span>差額</span><strong>{plainMoney(stats.diff)}</strong></article><article><span>儲蓄</span><strong>{plainMoney(stats.save)}</strong></article></div></div><div className="stat-list">{visibleExpenseCategories.map((item, index) => <div className="stat-entry" key={item}><button className="stat-row" aria-expanded={expandedCategory === item} onClick={() => setExpandedCategory(current => current === item ? '' : item)}><i style={{ backgroundColor: chartColors[index % chartColors.length] }}></i><span>{item}</span><b>{plainMoney(Math.abs(stats.values[item]))}</b><small>{totalSpent ? `${(Math.abs(stats.values[item]) / totalSpent * 100).toFixed(1)}%` : '0.0%'}</small></button>{expandedCategory === item && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item)} onEdit={onEdit} showHint={false} /></div>}</div>)}</div><section className="investment-stats"><h3>帳目項目 <small>轉帳 {plainMoney(stats.transferTotal)}</small></h3>{visibleInvestmentDefinitions.map((item, index) => <div className="stat-entry" key={item.id}><button className="stat-row" aria-expanded={expandedCategory === item.name} onClick={() => setExpandedCategory(current => current === item.name ? '' : item.name)}><i style={{ backgroundColor: investmentColors[index % investmentColors.length] }}></i><span>{item.name}</span><b>{plainMoney(stats.investments[item.name])}</b><small>{item.statsTag || defaultStatsTag}</small></button>{expandedCategory === item.name && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item.name)} onEdit={onEdit} showHint={false} /></div>}</div>)}{categoryDefinitions.filter(item => item.systemRole === 'transfer' && (!item.hidden || Math.abs(stats.transferTotal) > 0)).map(item => <div className="stat-entry" key={item.id}><button className="stat-row" aria-expanded={expandedCategory === item.name} onClick={() => setExpandedCategory(current => current === item.name ? '' : item.name)}><i className="transfer-color"></i><span>{item.name}</span><b>{plainMoney(stats.transferTotal)}</b><small>轉帳</small></button>{expandedCategory === item.name && <div className="category-details"><FlowRows records={periodRows.filter(record => record.category === item.name)} onEdit={onEdit} showHint={false} /></div>}</div>)}</section></section></> : <section className="logs"><div className="filters"><input className="log-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="查詢流水" aria-label="查詢流水" /><select value={account} onChange={event => setAccount(event.target.value)}><option value="all">所有帳戶</option>{accounts.map(item => <option key={item}>{item}</option>)}</select><select value={category} onChange={event => setCategory(event.target.value)}><option value="all">所有分類</option>{categories.map(item => <option key={item}>{item}</option>)}</select></div><DesktopFlowLedger records={visible} rowDetails={ledger.rowDetails} onEdit={onEdit} /><div className="mobile-flow-records"><FlowRows records={visible} onEdit={onEdit} /></div></section>}
   </dialog>;
 }
 
@@ -249,6 +250,7 @@ export default function App() {
   const [selectedAccount, setSelectedAccount] = useState(defaultAccounts[0]);
   const [statsOpen, setStatsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const homeMetrics = useMemo(() => normalizeHomeMetrics(preferences.homeMetrics), [preferences.homeMetrics]);
   const installer = useInstallPrompt();
   const accountRailRef = useRef(null);
   const driveSyncQueueRef = useRef(Promise.resolve());
@@ -392,27 +394,30 @@ export default function App() {
     return true;
   };
 
-  const addCategory = async (name, investment) => {
+  const addCategory = async (name, investment, statsTag) => {
     const value = cleanCatalogName(name);
     if (!value) { setNotice('請輸入分類名稱。'); return false; }
     if (catalogNameExists(catalog.categories, value)) { setNotice('已有相同名稱的分類。'); return false; }
-    const next = { ...catalog, updatedAt: new Date().toISOString(), categories: [...catalog.categories, { id: nextCatalogId('category'), name: value, aliases: [], investment: Boolean(investment), systemRole: null, hidden: false }] };
+    const tag = cleanCatalogName(statsTag) || defaultStatsTag;
+    const next = { ...catalog, updatedAt: new Date().toISOString(), categories: [...catalog.categories, { id: nextCatalogId('category'), name: value, aliases: [], investment: Boolean(investment), statsTag: tag, systemRole: null, hidden: false }] };
     await persistCatalog(next);
-    setNotice(`已新增${investment ? '投資' : '一般'}分類「${value}」。`);
+    setNotice(investment ? `已新增分類「${value}」，統計中顯示為「${tag}」。` : `已新增分類「${value}」。`);
     return true;
   };
 
-  const updateCategory = async (id, name, investment) => {
+  const updateCategory = async (id, name, investment, statsTag) => {
     const value = cleanCatalogName(name);
     const current = catalog.categories.find(item => item.id === id);
     if (!current || !value) { setNotice('請輸入分類名稱。'); return false; }
     if (catalogNameExists(catalog.categories, value, id)) { setNotice('已有相同名稱的分類。'); return false; }
+    const tag = cleanCatalogName(statsTag) || defaultStatsTag;
     const renamed = current.name !== value;
     const investmentChanged = current.investment !== Boolean(investment);
-    if (!renamed && !investmentChanged) return true;
+    const tagChanged = Boolean(investment) && (current.statsTag || defaultStatsTag) !== tag;
+    if (!renamed && !investmentChanged && !tagChanged) return true;
     const timestamp = new Date().toISOString();
     const migrated = renamed ? renameTransactionReferences(transactions, 'category', current.name, value, timestamp) : transactions;
-    const next = { ...catalog, updatedAt: timestamp, categories: catalog.categories.map(item => item.id === id ? { ...item, name: value, investment: Boolean(investment), aliases: renamed ? [...new Set([...(item.aliases || []), current.name])] : item.aliases } : item) };
+    const next = { ...catalog, updatedAt: timestamp, categories: catalog.categories.map(item => item.id === id ? { ...item, name: value, investment: Boolean(investment), statsTag: tag, aliases: renamed ? [...new Set([...(item.aliases || []), current.name])] : item.aliases } : item) };
     if (renamed) await persistTransactions(migrated);
     await persistCatalog(next);
     if (renamed) {
@@ -420,8 +425,10 @@ export default function App() {
       setPreferences(nextPreferences); savePreferences(nextPreferences);
     }
     setNotice(renamed
-      ? `分類已更新為「${value}」${investmentChanged ? `，並設為${investment ? '投資項目' : '一般分類'}` : ''}。`
-      : `「${value}」已設為${investment ? '投資項目' : '一般分類'}。`);
+      ? `分類已更新為「${value}」${investmentChanged ? `，並${investment ? '加入' : '移出'}統計` : ''}。`
+      : investment
+        ? `「${value}」會在統計中顯示為「${tag}」。`
+        : `「${value}」已不列入統計。`);
     return true;
   };
 
@@ -590,6 +597,28 @@ export default function App() {
     };
   }, [databaseReady, preferences.autoDriveSync, transactions, catalog.updatedAt]);
 
+  const updateHomeMetrics = next => {
+    const nextPreferences = { ...preferences, homeMetrics: normalizeHomeMetrics(next) };
+    setPreferences(nextPreferences);
+    savePreferences(nextPreferences);
+  };
+
+  const toggleHomeMetric = id => {
+    const metric = findHomeMetric(id);
+    if (!metric) return;
+    if (homeMetrics.includes(id)) {
+      if (homeMetrics.length <= 1) { setNotice('首頁至少要保留一項資料。'); return; }
+      updateHomeMetrics(homeMetrics.filter(item => item !== id));
+      setNotice(`已移除「${metric.label}」。`);
+      return;
+    }
+    if (homeMetrics.length >= maxHomeMetrics) { setNotice(`首頁最多顯示 ${maxHomeMetrics} 項資料。`); return; }
+    updateHomeMetrics([...homeMetrics, id]);
+    setNotice(`已加入「${metric.label}」。`);
+  };
+
+  const reorderHomeMetric = (id, direction) => updateHomeMetrics(moveHomeMetric(homeMetrics, id, direction));
+
   const installApp = async () => {
     const accepted = await installer.install();
     setNotice(accepted ? '正在安裝，稍後可從主畫面直接開啟。' : '已取消安裝，之後仍可從設定再安裝。');
@@ -612,12 +641,12 @@ export default function App() {
   if (!databaseReady) return <main className="database-state"><strong>正在載入本機帳本…</strong><span>IndexedDB 初始化中</span></main>;
   if (databaseError) return <main className="database-state error"><strong>無法開啟帳本</strong><span>{databaseError}</span><button className="primary" onClick={() => location.reload()}>重新載入</button></main>;
 
-  return <main className={`view-${mobileView}`}>
+  return <main className={`view-${mobileView}`} style={{ '--home-metric-rows': String(homeMetrics.length) }}>
     {update && <div className="update">已有新版可用。<button onClick={() => location.reload()}>立即更新</button></div>}
-    <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small><span className="daily"><b>日支出</b><span>{plainMoney(ledger.day.total)}</span></span><span className="monthly"><b>月收入</b><span>{plainMoney(ledger.month.save)}</span></span></small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
+    <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small>{homeMetrics.map(id => { const metric = findHomeMetric(id); const value = metric.read(ledger); return <span className={`stat-line ${homeMetricTone(metric, value)}`} key={id}><b>{metric.label}</b><span>{plainMoney(value)}</span></span>; })}</small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
     <section className="workspace grid"><QuickTransactionForm accounts={accounts} categories={categories} preferences={preferences} selectedAccount={selectedAccount} onAccountChange={setSelectedAccount} onSave={addTransaction} /><section id="transactions" className="recent-flow"><div className="section-heading"><div><h2>近期交易</h2><small>顯示 {Math.min(16, ledger.rows.length)}／共 {ledger.rows.length} 筆</small></div><button onClick={() => setStatsOpen(true)}>查看全部流水</button></div><FlowRows records={ledger.rows.slice(-16).reverse()} onEdit={record => setEditing(record)} /></section></section>
     <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button className="mobile-settings" onClick={() => setSettingsOpen(true)} aria-label="設定"><GearIcon /><span>設定</span></button></nav>
-    {statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => setSettingsOpen(true)} />}{settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onMoveAccount={(id, direction) => moveCatalogOrder('account', id, direction)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onMoveCategory={(id, direction) => moveCatalogOrder('category', id, direction)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} installer={installer} onInstall={installApp} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
+    {statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => setSettingsOpen(true)} />}{settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onMoveAccount={(id, direction) => moveCatalogOrder('account', id, direction)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onMoveCategory={(id, direction) => moveCatalogOrder('category', id, direction)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} installer={installer} onInstall={installApp} homeMetrics={homeMetrics} onToggleHomeMetric={toggleHomeMetric} onMoveHomeMetric={reorderHomeMetric} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main>;
 }

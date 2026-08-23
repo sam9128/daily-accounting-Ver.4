@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { findHomeMetric, homeMetricDefinitions, maxHomeMetrics } from '../lib/metrics.js';
+import { defaultStatsTag } from '../lib/catalog.js';
 
 export function GearIcon() {
   return <svg className="gear-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Z"/><path d="M19.1 13.2a7.7 7.7 0 0 0 .05-1.2 7.7 7.7 0 0 0-.05-1.2l2-1.55-2-3.46-2.45.98a8.2 8.2 0 0 0-2.08-1.2L14.2 3h-4l-.38 2.57a8.2 8.2 0 0 0-2.08 1.2L5.3 5.79l-2 3.46 2 1.55A7.7 7.7 0 0 0 5.25 12c0 .4.03.8.08 1.2l-2 1.55 2 3.46 2.44-.98c.63.5 1.33.9 2.08 1.2L10.2 21h4l.38-2.57a8.2 8.2 0 0 0 2.08-1.2l2.45.98 2-3.46-2-1.55Z"/></svg>;
@@ -25,7 +27,7 @@ function CatalogItem({ item, type, usage, sorting, canMoveUp, canMoveDown, onSta
   return <article className={`catalog-item${item.hidden ? ' is-hidden' : ''}${sorting ? ' is-sorting' : ''}`} data-catalog-id={item.id} onPointerDown={beginHold} onPointerMove={trackHold} onPointerUp={cancelHold} onPointerCancel={cancelHold} onContextMenu={event => event.preventDefault()}>
     <div className="catalog-copy">
       <strong>{item.name}</strong>
-      <small>{usage ? `${usage} 筆流水` : '尚無流水'}{type === 'category' && <> · {item.investment ? '投資項目' : item.systemRole === 'saving' ? '儲蓄統計' : item.systemRole === 'transfer' ? '轉帳統計' : '一般分類'}</>}</small>
+      <small>{usage ? `${usage} 筆流水` : '尚無流水'}{type === 'category' && <> · {item.investment ? `統計顯示「${item.statsTag || defaultStatsTag}」` : item.systemRole === 'saving' ? '儲蓄統計' : item.systemRole === 'transfer' ? '轉帳統計' : '不列入統計'}</>}</small>
     </div>
     <div className="catalog-actions">
       {sorting
@@ -40,12 +42,13 @@ function CatalogItem({ item, type, usage, sorting, canMoveUp, canMoveDown, onSta
 function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore, onDelete, onMove }) {
   const [name, setName] = useState('');
   const [investment, setInvestment] = useState(false);
+  const [statsTag, setStatsTag] = useState(defaultStatsTag);
   const [sortingId, setSortingId] = useState(null);
   const active = items.filter(item => !item.hidden);
   const hidden = items.filter(item => item.hidden);
   const submit = async event => {
     event.preventDefault();
-    if (await onAdd(name, investment)) { setName(''); setInvestment(false); }
+    if (await onAdd(name, investment, statsTag)) { setName(''); setInvestment(false); setStatsTag(defaultStatsTag); }
   };
   const noun = type === 'account' ? '帳戶' : '分類';
   const itemCard = (item, peers) => {
@@ -56,15 +59,16 @@ function CatalogSection({ type, items, usage, onAdd, onEdit, onHide, onRestore, 
     <div className="settings-section-heading"><div><h3 id={`${type}-settings-title`}>{noun}管理</h3><p>共 {active.length} 個使用中{hidden.length ? `，${hidden.length} 個已隱藏` : ''} · 長按項目可調整順序</p></div></div>
     <form className="catalog-add" onSubmit={submit}>
       <label><span>新增{noun}</span><input value={name} onChange={event => setName(event.target.value)} placeholder={`輸入${noun}名稱`} maxLength="24" required /></label>
-      {type === 'category' && <label className="new-investment"><input type="checkbox" checked={investment} onChange={event => setInvestment(event.target.checked)} /><span>設為投資項目</span></label>}
+      {type === 'category' && <label className="new-investment"><input type="checkbox" checked={investment} onChange={event => setInvestment(event.target.checked)} /><span>在統計中顯示</span></label>}
       <button className="primary">新增</button>
+      {type === 'category' && investment && <label className="stats-tag-field"><span>統計標籤文字</span><input value={statsTag} onChange={event => setStatsTag(event.target.value)} maxLength="6" placeholder={defaultStatsTag} /></label>}
     </form>
     <div className="catalog-list" aria-label={`使用中的${noun}`}>{active.map(item => itemCard(item, active))}</div>
     {hidden.length > 0 && <details className="hidden-catalog"><summary>已隱藏的{noun} <span>{hidden.length}</span></summary><div className="catalog-list">{hidden.map(item => itemCard(item, hidden))}</div></details>}
   </section>;
 }
 
-function CatalogEditor({ editor, draft, investment, onDraftChange, onInvestmentChange, onCancel, onSave }) {
+function CatalogEditor({ editor, draft, investment, statsTag, onDraftChange, onInvestmentChange, onStatsTagChange, onCancel, onSave }) {
   const noun = editor.type === 'account' ? '帳戶' : '分類';
   return <div className="catalog-edit-layer" onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className="catalog-edit-panel" role="dialog" aria-modal="true" aria-labelledby="catalog-edit-title">
@@ -72,11 +76,36 @@ function CatalogEditor({ editor, draft, investment, onDraftChange, onInvestmentC
       <p>目前名稱 <strong>{editor.item.name}</strong></p>
       <form onSubmit={onSave}>
         <label><span>新的{noun}名稱</span><input value={draft} onChange={event => onDraftChange(event.target.value)} maxLength="24" required autoFocus /></label>
-        {editor.type === 'category' && <label className="edit-investment"><input type="checkbox" checked={investment} onChange={event => onInvestmentChange(event.target.checked)} /><span>設為投資項目</span></label>}
+        {editor.type === 'category' && <label className="edit-investment"><input type="checkbox" checked={investment} onChange={event => onInvestmentChange(event.target.checked)} /><span>在統計中顯示</span></label>}
+        {editor.type === 'category' && investment && <label className="stats-tag-field"><span>統計標籤文字</span><input value={statsTag} onChange={event => onStatsTagChange(event.target.value)} maxLength="6" placeholder={defaultStatsTag} /></label>}
         <div className="catalog-edit-actions"><button type="button" onClick={onCancel}>取消</button><button className="primary">儲存變更</button></div>
       </form>
     </section>
   </div>;
+}
+
+function HomeSection({ metrics, onToggle, onMove }) {
+  const selected = metrics.map(findHomeMetric).filter(Boolean);
+  const available = homeMetricDefinitions.filter(item => !metrics.includes(item.id));
+  return <section className="settings-section home-settings" aria-labelledby="home-settings-title">
+    <div className="settings-section-heading"><div><h3 id="home-settings-title">首頁資料</h3><p>選擇總計餘額卡片要顯示哪幾項，由上到下依序排列 · 最多 {maxHomeMetrics} 項</p></div></div>
+    <div className="catalog-list" aria-label="首頁顯示的資料">
+      {selected.map((item, index) => <article className="catalog-item" key={item.id}>
+        <div className="catalog-copy"><strong>{item.label}</strong><small>第 {index + 1} 行 · {item.scopeLabel}期間{item.kindLabel}</small></div>
+        <div className="catalog-actions">
+          <div className="catalog-order-controls">
+            <button type="button" disabled={index === 0} onClick={() => onMove(item.id, -1)} aria-label={`上移${item.label}`}>上移</button>
+            <button type="button" disabled={index === selected.length - 1} onClick={() => onMove(item.id, 1)} aria-label={`下移${item.label}`}>下移</button>
+          </div>
+          <button className="catalog-hide" type="button" onClick={() => onToggle(item.id)} aria-label={`移除${item.label}`}>移除</button>
+        </div>
+      </article>)}
+    </div>
+    <details className="hidden-catalog metric-picker" open>
+      <summary>可加入的資料 <span>{available.length}</span></summary>
+      <div className="metric-choices">{available.map(item => <button type="button" key={item.id} onClick={() => onToggle(item.id)}>＋ {item.label}</button>)}</div>
+    </details>
+  </section>;
 }
 
 function InstallCard({ installer, onInstall }) {
@@ -118,14 +147,15 @@ export default function SettingsDialog(props) {
   const [editor, setEditor] = useState(null);
   const [draft, setDraft] = useState('');
   const [investmentDraft, setInvestmentDraft] = useState(false);
-  const sections = [['accounts', '帳戶'], ['categories', '分類'], ['sync', '資料']];
-  const beginEdit = (type, item) => { setEditor({ type, item }); setDraft(item.name); setInvestmentDraft(Boolean(item.investment)); };
+  const [statsTagDraft, setStatsTagDraft] = useState(defaultStatsTag);
+  const sections = [['home', '首頁'], ['accounts', '帳戶'], ['categories', '分類'], ['sync', '資料']];
+  const beginEdit = (type, item) => { setEditor({ type, item }); setDraft(item.name); setInvestmentDraft(Boolean(item.investment)); setStatsTagDraft(item.statsTag || defaultStatsTag); };
   const closeEditor = () => setEditor(null);
   const saveEditor = async event => {
     event.preventDefault();
     const saved = editor.type === 'account'
       ? await props.onRenameAccount(editor.item.id, draft)
-      : await props.onUpdateCategory(editor.item.id, draft, investmentDraft);
+      : await props.onUpdateCategory(editor.item.id, draft, investmentDraft, statsTagDraft);
     if (saved) closeEditor();
   };
   useEffect(() => {
@@ -139,11 +169,12 @@ export default function SettingsDialog(props) {
       <header className="settings-header"><div className="settings-title"><GearIcon /><div><h2 id="settings-title">設定</h2><small>帳本結構與私密同步</small></div></div><button className="settings-close" onClick={props.onClose} aria-label="關閉">×</button></header>
       <nav className="settings-tabs" aria-label="設定分類">{sections.map(([value, label]) => <button className={section === value ? 'active' : ''} key={value} onClick={() => { closeEditor(); setSection(value); }}>{label}</button>)}</nav>
       <div className="settings-body">
+        {section === 'home' && <HomeSection metrics={props.homeMetrics} onToggle={props.onToggleHomeMetric} onMove={props.onMoveHomeMetric} />}
         {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} onDelete={props.onDeleteAccount} onMove={props.onMoveAccount} />}
         {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onDelete={props.onDeleteCategory} onMove={props.onMoveCategory} />}
         {section === 'sync' && <SyncSection {...props} />}
       </div>
     </div>
-    {editor && <CatalogEditor editor={editor} draft={draft} investment={investmentDraft} onDraftChange={setDraft} onInvestmentChange={setInvestmentDraft} onCancel={closeEditor} onSave={saveEditor} />}
+    {editor && <CatalogEditor editor={editor} draft={draft} investment={investmentDraft} statsTag={statsTagDraft} onDraftChange={setDraft} onInvestmentChange={setInvestmentDraft} onStatsTagChange={setStatsTagDraft} onCancel={closeEditor} onSave={saveEditor} />}
   </dialog>;
 }

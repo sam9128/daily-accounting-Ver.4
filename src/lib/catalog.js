@@ -1,6 +1,7 @@
 import { defaultAccounts, defaultCategoryDefinitions } from './ledger.js';
 
 const clean = value => String(value ?? '').trim();
+export const defaultStatsTag = '投資';
 const key = value => clean(value).toLocaleLowerCase('zh-TW');
 const uniqueNames = items => items.filter((item, index, all) => item.name && all.findIndex(candidate => key(candidate.name) === key(item.name)) === index);
 const legacyId = (type, name, index) => `legacy-${type}-${index}-${encodeURIComponent(key(name))}`;
@@ -25,6 +26,7 @@ function normalizeCategories(items) {
       name,
       aliases: [...new Set((value.aliases || []).map(clean).filter(Boolean))],
       investment: value.investment ?? fallback?.investment ?? false,
+      statsTag: clean(value.statsTag) || defaultStatsTag,
       systemRole: value.systemRole ?? fallback?.systemRole ?? null,
       hidden: Boolean(value.hidden),
     };
