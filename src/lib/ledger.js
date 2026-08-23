@@ -31,7 +31,6 @@ function periodStats(rows, targetDate, scope, categoryDefinitions) {
   let save = 0;
   let transferTotal = 0;
   let expenseTotal = 0;
-  let incomeTotal = 0;
   for (const row of rows) {
     const date = dateParts(row.date);
     const included = scope === 'day'
@@ -44,7 +43,6 @@ function periodStats(rows, targetDate, scope, categoryDefinitions) {
     if (Object.hasOwn(values, row.category)) {
       values[row.category] += delta;
       expenseTotal += num(row.expense);
-      incomeTotal += num(row.income);
     }
     if (Object.hasOwn(investments, row.category)) investments[row.category] += delta;
     const definition = definitionsByName.get(row.category);
@@ -52,7 +50,7 @@ function periodStats(rows, targetDate, scope, categoryDefinitions) {
     if (definition?.systemRole === 'transfer') transferTotal += delta;
   }
   const total = Object.values(values).reduce((sum, value) => sum + value, 0);
-  return { values, total, save, diff: total + save, investments, transferTotal, expenseTotal, incomeTotal };
+  return { values, total, save, diff: total + save, investments, transferTotal, expenseTotal };
 }
 
 export function calculate(transactions, accounts = defaultAccounts, targetDate = localToday(), categoryDefinitions = defaultCategoryDefinitions) {

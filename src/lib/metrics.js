@@ -8,9 +8,8 @@ const scopes = [
 
 const kinds = [
   { key: 'expense', label: '支出', tone: 'out', read: stats => stats.expenseTotal },
-  { key: 'income', label: '收入', tone: 'in', read: stats => stats.incomeTotal },
   { key: 'net', label: '結餘', tone: 'signed', read: stats => stats.total },
-  { key: 'save', label: '儲蓄', tone: 'signed', read: stats => stats.save },
+  { key: 'save', label: '收入', tone: 'signed', read: stats => stats.save },
 ];
 
 export const homeMetricDefinitions = scopes.flatMap(scope => kinds.map(kind => ({
@@ -24,13 +23,18 @@ export const homeMetricDefinitions = scopes.flatMap(scope => kinds.map(kind => (
 
 const byId = new Map(homeMetricDefinitions.map(item => [item.id, item]));
 
-export const defaultHomeMetrics = ['day.expense', 'month.expense', 'month.income'];
+export const defaultHomeMetrics = ['day.expense', 'month.expense', 'month.save'];
+
+// 收入 used to mean the income column of ordinary categories; it now reads the
+// 存 balance, so older saved picks carry over to the metric that kept the name.
+const legacyIds = { 'day.income': 'day.save', 'month.income': 'month.save', 'year.income': 'year.save' };
 export const maxHomeMetrics = 6;
 
 export const findHomeMetric = id => byId.get(id) ?? null;
 
 export function normalizeHomeMetrics(value) {
-  const picked = [...new Set((Array.isArray(value) ? value : []).filter(id => byId.has(id)))].slice(0, maxHomeMetrics);
+  const mapped = (Array.isArray(value) ? value : []).map(id => legacyIds[id] ?? id);
+  const picked = [...new Set(mapped.filter(id => byId.has(id)))].slice(0, maxHomeMetrics);
   return picked.length ? picked : defaultHomeMetrics;
 }
 
