@@ -321,14 +321,22 @@ export default function App() {
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return undefined;
-    let largestHeight = viewport.height;
+    // Only a rotation really changes how tall the viewport can be; anything else
+    // shrinks it because the keyboard is up. Keep the tallest height seen as the
+    // closed baseline — rereading it while a field was blurred used to leave the
+    // shrunken height behind, after which no later focus counted as a keyboard.
+    let baselineWidth = viewport.width;
+    let baselineHeight = viewport.height;
     let delayedTimer;
     let settleTimer;
     const updateKeyboardLayout = () => {
       const editableFocused = document.activeElement?.matches('input, textarea, select');
-      if (editableFocused) largestHeight = Math.max(largestHeight, viewport.height);
-      else largestHeight = viewport.height;
-      const keyboardOpen = editableFocused && largestHeight - viewport.height > 120;
+      if (viewport.width !== baselineWidth) {
+        baselineWidth = viewport.width;
+        baselineHeight = viewport.height;
+      }
+      baselineHeight = Math.max(baselineHeight, viewport.height);
+      const keyboardOpen = editableFocused && baselineHeight - viewport.height > 120;
       document.documentElement.classList.toggle('keyboard-open', keyboardOpen);
       document.documentElement.style.setProperty('--visual-offset-top', `${viewport.offsetTop}px`);
       document.documentElement.style.setProperty('--visual-height', `${viewport.height}px`);
