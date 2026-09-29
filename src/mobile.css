@@ -150,10 +150,8 @@
   .quick-form {
     display: none;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto 1fr auto;
     gap: 17px 12px;
     margin: 0;
-    min-height: calc(100dvh - 222px - max(0px, var(--home-metric-rows, 3) * 20.2px - 62px));
     padding: 24px 20px 12px;
     border-color: #303030;
     border-radius: 28px;
@@ -203,7 +201,6 @@
   .quick-categories { display: none; }
 
   .quick-form .primary {
-    grid-row: 6;
     min-height: 64px;
     margin-top: 2px;
     border-radius: 16px;
@@ -382,7 +379,6 @@
   }
   .total-card strong { font-size: 29px; }
   .quick-form {
-    min-height: calc(100dvh - 222px - max(0px, var(--home-metric-rows, 3) * 20.2px - 62px));
     padding: 20px 16px 12px;
     border-radius: 24px;
     gap: 14px 10px;
