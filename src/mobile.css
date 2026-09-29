@@ -209,6 +209,13 @@
     color: #050505;
   }
 
+  /* dvh ignores the on-screen keyboard, so the page stays a full viewport tall
+     and scrolls into dead space below the fields. Size it to content instead,
+     keeping only the strip the fixed submit button covers. */
+  html.keyboard-open #root,
+  html.keyboard-open main { min-height: 0; }
+  html.keyboard-open .quick-form { padding-bottom: 78px; }
+
   html.keyboard-open .quick-form .primary {
     position: fixed;
     z-index: 80;
