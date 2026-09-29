@@ -84,8 +84,6 @@ const chartColors = ['#d96b64', '#c07a49', '#c9a64a', '#6e9d68', '#4f9198', '#5f
 const investmentColors = ['#7186a8', '#9a7c63', '#708f82'];
 
 const longPressDuration = 550;
-// Matches the strip html.keyboard-open reserves for the fixed submit button.
-const submitStrip = 78;
 
 function FlowRow({ record, onEdit, variant = 'card', details }) {
   const timer = useRef(null);
@@ -331,7 +329,7 @@ export default function App() {
       if (!document.documentElement.classList.contains('keyboard-open')) return;
       const box = field.getBoundingClientRect();
       const top = viewport.offsetTop;
-      const bottom = top + viewport.height - submitStrip;
+      const bottom = top + viewport.height;
       if (box.top < top || box.bottom > bottom) field.scrollIntoView({ block: 'nearest' });
     };
     const delayedUpdate = () => {

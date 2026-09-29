@@ -214,23 +214,9 @@
      keeping only the strip the fixed submit button covers. */
   html.keyboard-open #root,
   html.keyboard-open main { min-height: 0; }
-  html.keyboard-open .quick-form { padding-bottom: 78px; }
-  /* Keep any scroll-into-view — the browser's on focus, or ours — clear of the
-     fixed submit button instead of tucking the field underneath it. */
+  /* Leave a little air around whatever a scroll-into-view brings up. */
   html.keyboard-open .quick-form input,
-  html.keyboard-open .quick-form select { scroll-margin-top: 12px; scroll-margin-bottom: 86px; }
-
-  html.keyboard-open .quick-form .primary {
-    position: fixed;
-    z-index: 80;
-    top: calc(var(--visual-offset-top, 0px) + var(--visual-height, 100dvh) - 72px);
-    right: max(34px, calc((100vw - 460px) / 2 + 34px));
-    left: max(34px, calc((100vw - 460px) / 2 + 34px));
-    width: auto;
-    min-height: 58px;
-    margin: 0;
-    box-shadow: 0 10px 30px #000b;
-  }
+  html.keyboard-open .quick-form select { scroll-margin: 12px 0 16px; }
 
   .table-wrap table { min-width: 0; }
   .table-wrap th:nth-child(2),
@@ -402,8 +388,4 @@
     font-size: 22px;
   }
   .quick-form .primary { min-height: 56px; }
-  html.keyboard-open .quick-form .primary {
-    right: 26px;
-    left: 26px;
-  }
 }
