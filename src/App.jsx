@@ -54,6 +54,7 @@ function useInstallPrompt() {
 
 function QuickTransactionForm({ accounts, categories, preferences, selectedAccount, onAccountChange, onSave }) {
   const [form, setForm] = useState(() => blankForm(preferences, accounts, categories));
+  const expenseRef = useRef(null);
   useEffect(() => setForm(current => ({ ...current, account: accounts.includes(current.account) ? current.account : accounts[0] })), [accounts]);
   useEffect(() => setForm(current => ({ ...current, category: categories.includes(current.category) ? current.category : categories[0] })), [categories]);
   useEffect(() => { if (selectedAccount) setForm(current => ({ ...current, account: selectedAccount })); }, [selectedAccount]);
@@ -67,15 +68,27 @@ function QuickTransactionForm({ accounts, categories, preferences, selectedAccou
     const saved = await onSave(form);
     if (saved) setForm(current => ({ ...blankForm({ ...preferences, lastAccount: current.account, lastCategory: current.category }, accounts, categories), account: current.account, category: current.category }));
   };
+  // Enter walks the tail of the form: 原因 hands over to 支出, and either
+  // amount field sends the transaction.
+  const advanceToAmount = event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    expenseRef.current?.focus();
+  };
+  const submitOnEnter = event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  };
   return <form className="quick-form" onSubmit={submit}>
     <div className="form-heading"><h2>新增交易</h2></div>
     <label>日期<input name="date" type="date" value={form.date} onChange={change} required /></label>
     <label>帳戶<select name="account" value={form.account} onChange={change}>{accounts.map(account => <option key={account}>{account}</option>)}</select></label>
     <label className="wide category-field">分類項目<select name="category" value={form.category} onChange={change}>{categories.map(category => <option key={category}>{category}</option>)}</select></label>
     <div className="quick-categories"><span>分類項目</span><div>{categories.map(category => <button type="button" className={form.category === category ? 'active' : ''} key={category} onClick={() => setForm(current => ({ ...current, category }))}>{category}</button>)}</div></div>
-    <label className="wide reason-field">原因<input name="reason" value={form.reason} onChange={change} placeholder="原因備註" /></label>
-    <label className="expense">支出 AMOUNT<input name="expense" inputMode="decimal" type="number" min="0" step="any" value={form.expense} onChange={change} placeholder="− 0" /></label>
-    <label className="income">收入 AMOUNT<input name="income" inputMode="decimal" type="number" min="0" step="any" value={form.income} onChange={change} placeholder="＋ 0" /></label>
+    <label className="wide reason-field">原因<input name="reason" value={form.reason} onChange={change} onKeyDown={advanceToAmount} enterKeyHint="next" placeholder="原因備註" /></label>
+    <label className="expense">支出 AMOUNT<input ref={expenseRef} name="expense" inputMode="decimal" type="number" min="0" step="any" value={form.expense} onChange={change} onKeyDown={submitOnEnter} enterKeyHint="send" placeholder="− 0" /></label>
+    <label className="income">收入 AMOUNT<input name="income" inputMode="decimal" type="number" min="0" step="any" value={form.income} onChange={change} onKeyDown={submitOnEnter} enterKeyHint="send" placeholder="＋ 0" /></label>
     <button className="primary" type="submit">確認送出 <span>↗</span></button>
   </form>;
 }
