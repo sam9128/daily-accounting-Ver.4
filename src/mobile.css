@@ -215,6 +215,10 @@
   html.keyboard-open #root,
   html.keyboard-open main { min-height: 0; }
   html.keyboard-open .quick-form { padding-bottom: 78px; }
+  /* Keep any scroll-into-view — the browser's on focus, or ours — clear of the
+     fixed submit button instead of tucking the field underneath it. */
+  html.keyboard-open .quick-form input,
+  html.keyboard-open .quick-form select { scroll-margin-top: 12px; scroll-margin-bottom: 86px; }
 
   html.keyboard-open .quick-form .primary {
     position: fixed;

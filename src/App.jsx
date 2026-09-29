@@ -84,6 +84,8 @@ const chartColors = ['#d96b64', '#c07a49', '#c9a64a', '#6e9d68', '#4f9198', '#5f
 const investmentColors = ['#7186a8', '#9a7c63', '#708f82'];
 
 const longPressDuration = 550;
+// Matches the strip html.keyboard-open reserves for the fixed submit button.
+const submitStrip = 78;
 
 function FlowRow({ record, onEdit, variant = 'card', details }) {
   const timer = useRef(null);
@@ -310,6 +312,7 @@ export default function App() {
     if (!viewport) return undefined;
     let largestHeight = viewport.height;
     let delayedTimer;
+    let settleTimer;
     const updateKeyboardLayout = () => {
       const editableFocused = document.activeElement?.matches('input, textarea, select');
       if (editableFocused) largestHeight = Math.max(largestHeight, viewport.height);
@@ -319,9 +322,25 @@ export default function App() {
       document.documentElement.style.setProperty('--visual-offset-top', `${viewport.offsetTop}px`);
       document.documentElement.style.setProperty('--visual-height', `${viewport.height}px`);
     };
+    // Browsers scroll a focused field into view themselves, and with the short
+    // scroll range a keyboard leaves they can overshoot and push the tapped
+    // field off the top. Pull it back only when it actually ended up hidden.
+    const keepFocusedFieldVisible = () => {
+      const field = document.activeElement;
+      if (!field?.matches('input, textarea, select')) return;
+      if (!document.documentElement.classList.contains('keyboard-open')) return;
+      const box = field.getBoundingClientRect();
+      const top = viewport.offsetTop;
+      const bottom = top + viewport.height - submitStrip;
+      if (box.top < top || box.bottom > bottom) field.scrollIntoView({ block: 'nearest' });
+    };
     const delayedUpdate = () => {
       clearTimeout(delayedTimer);
-      delayedTimer = setTimeout(updateKeyboardLayout, 60);
+      delayedTimer = setTimeout(() => {
+        updateKeyboardLayout();
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(keepFocusedFieldVisible, 220);
+      }, 60);
     };
     updateKeyboardLayout();
     viewport.addEventListener('resize', updateKeyboardLayout);
@@ -334,6 +353,7 @@ export default function App() {
       window.removeEventListener('focusin', delayedUpdate);
       window.removeEventListener('focusout', delayedUpdate);
       clearTimeout(delayedTimer);
+      clearTimeout(settleTimer);
       document.documentElement.classList.remove('keyboard-open');
     };
   }, []);
