@@ -108,6 +108,22 @@ function HomeSection({ metrics, onToggle, onMove }) {
   </section>;
 }
 
+function UpdateCard({ updateReady, checking, onCheck }) {
+  return <article className="settings-card">
+    <div>
+      <strong>應用程式更新</strong>
+      <small>{updateReady
+        ? '已下載新版本，套用後會重新載入。'
+        : checking
+          ? '正在向伺服器確認版本…'
+          : '安裝後的版本不會自動換新，可在這裡手動檢查。'}</small>
+    </div>
+    <button className={updateReady ? 'primary' : undefined} disabled={checking} onClick={onCheck}>
+      {updateReady ? '立即更新' : checking ? '檢查中…' : '檢查更新'}
+    </button>
+  </article>;
+}
+
 function InstallCard({ installer, onInstall }) {
   const { canInstall, installed, needsManualSteps } = installer;
   return <article className="settings-card">
@@ -125,7 +141,7 @@ function InstallCard({ installer, onInstall }) {
   </article>;
 }
 
-function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSyncState, onBackup, onRestoreFile, onSync, syncing, lastSynced, installer, onInstall }) {
+function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSyncState, onBackup, onRestoreFile, onSync, syncing, lastSynced, installer, onInstall, updateReady, checkingUpdate, onCheckUpdate }) {
   const syncDescription = {
     preparing: '正在準備背景同步…',
     syncing: '正在背景合併並備份…',
@@ -139,6 +155,7 @@ function SyncSection({ isEmpty, driveConfigured, autoSyncEnabled, backgroundSync
     <article className="settings-card"><div><strong>本機資料庫</strong><small>歷史帳目不包含在公開網站或 GitHub 原始碼中。</small></div>{isEmpty ? <label className="file-picker">從本機私密備份還原<input type="file" accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; if (file) onRestoreFile(file); event.target.value = ''; }} /></label> : <button onClick={onBackup}>下載安全備份</button>}</article>
     <article className="settings-card"><div><strong>Google Drive</strong><small><i className={driveConfigured ? 'online' : 'offline'}></i>{driveConfigured ? syncDescription || (autoSyncEnabled ? '載入與送出交易後會自動嘗試同步' : '登入同步後將自動備份新交易') : '尚未設定 Google OAuth Client ID'}</small></div><button className="primary" disabled={!driveConfigured || syncing} onClick={onSync}>{syncing ? '正在安全處理…' : isEmpty ? '登入並私密還原' : autoSyncEnabled ? '立即同步' : '登入並同步'}</button>{lastSynced && <small className="last-sync">上次同步：{new Date(lastSynced).toLocaleString('zh-TW')}</small>}</article>
     <InstallCard installer={installer} onInstall={onInstall} />
+    <UpdateCard updateReady={updateReady} checking={checkingUpdate} onCheck={onCheckUpdate} />
   </section>;
 }
 

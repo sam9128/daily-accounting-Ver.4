@@ -6,6 +6,7 @@ import { calculate, defaultAccounts, num } from './lib/ledger.js';
 import { connectDrive, downloadBackup, hasFreshDriveToken, mergeTransactions, prepareDrive, uploadBackup } from './lib/drive.js';
 import { loadPreferences, savePreferences } from './lib/preferences.js';
 import { findHomeMetric, homeMetricTone, maxHomeMetrics, moveHomeMetric, normalizeHomeMetrics } from './lib/metrics.js';
+import { applyUpdate, checkForUpdate } from './lib/updates.js';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const money = value => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(value);
@@ -246,6 +247,7 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [backgroundSyncState, setBackgroundSyncState] = useState('idle');
   const [update, setUpdate] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [mobileView, setMobileView] = useState('add');
   const [selectedAccount, setSelectedAccount] = useState(defaultAccounts[0]);
   const [statsOpen, setStatsOpen] = useState(false);
@@ -619,6 +621,27 @@ export default function App() {
 
   const reorderHomeMetric = (id, direction) => updateHomeMetrics(moveHomeMetric(homeMetrics, id, direction));
 
+  const runUpdateCheck = async () => {
+    if (update) { void applyUpdate(); return; }
+    setCheckingUpdate(true);
+    try {
+      const result = await checkForUpdate();
+      if (result === 'updated') {
+        setUpdate(true);
+        setNotice('已取得新版本，正在重新載入…');
+        await applyUpdate();
+        return;
+      }
+      setNotice({
+        current: '目前已是最新版本。',
+        unsupported: '此環境沒有背景更新（開發模式或瀏覽器不支援）。',
+        failed: '檢查更新失敗，請確認網路後再試。',
+      }[result]);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   const installApp = async () => {
     const accepted = await installer.install();
     setNotice(accepted ? '正在安裝，稍後可從主畫面直接開啟。' : '已取消安裝，之後仍可從設定再安裝。');
@@ -642,11 +665,11 @@ export default function App() {
   if (databaseError) return <main className="database-state error"><strong>無法開啟帳本</strong><span>{databaseError}</span><button className="primary" onClick={() => location.reload()}>重新載入</button></main>;
 
   return <main className={`view-${mobileView}`} style={{ '--home-metric-rows': String(homeMetrics.length) }}>
-    {update && <div className="update">已有新版可用。<button onClick={() => location.reload()}>立即更新</button></div>}
+    {update && <div className="update">已有新版可用。<button onClick={() => applyUpdate()}>立即更新</button></div>}
     <section className="summary"><button className="total-card" onClick={() => setStatsOpen(true)}><span>總計餘額 <i>›</i></span><strong><span className="desktop-value">{plainMoney(ledger.total)}</span><span className="mobile-value">{plainMoney(ledger.total)}</span></strong><small>{homeMetrics.map(id => { const metric = findHomeMetric(id); const value = metric.read(ledger); return <span className={`stat-line ${homeMetricTone(metric, value)}`} key={id}><b>{metric.label}</b><span>{plainMoney(value)}</span></span>; })}</small></button><article className="accounts"><h2>帳戶餘額</h2><div ref={accountRailRef}>{accounts.map(account => <button className={selectedAccount === account ? 'selected' : ''} key={account} onClick={() => { setSelectedAccount(account); setMobileView('add'); }}><span>{account}</span><b className={ledger.balances[account] < 0 ? 'negative' : ''}><span className="desktop-value">{plainMoney(ledger.balances[account])}</span><span className="mobile-value">{plainMoney(ledger.balances[account])}</span></b></button>)}<LedgerTotals ledger={ledger} categoryDefinitions={categoryDefinitions} onOpen={() => setStatsOpen(true)} /></div></article></section>
     <section className="workspace grid"><QuickTransactionForm accounts={accounts} categories={categories} preferences={preferences} selectedAccount={selectedAccount} onAccountChange={setSelectedAccount} onSave={addTransaction} /><section id="transactions" className="recent-flow"><div className="section-heading"><div><h2>近期交易</h2><small>顯示 {Math.min(16, ledger.rows.length)}／共 {ledger.rows.length} 筆</small></div><button onClick={() => setStatsOpen(true)}>查看全部流水</button></div><FlowRows records={ledger.rows.slice(-16).reverse()} onEdit={record => setEditing(record)} /></section></section>
     <nav className="mobile-nav" aria-label="手機導覽"><button className={mobileView === 'overview' ? 'active' : ''} onClick={() => setMobileView('overview')}>總覽</button><button className={mobileView === 'add' ? 'active' : ''} onClick={() => setMobileView('add')}>新增</button><button className={mobileView === 'transactions' ? 'active' : ''} onClick={() => setMobileView('transactions')}>交易</button><button className="mobile-settings" onClick={() => setSettingsOpen(true)} aria-label="設定"><GearIcon /><span>設定</span></button></nav>
-    {statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => setSettingsOpen(true)} />}{settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onMoveAccount={(id, direction) => moveCatalogOrder('account', id, direction)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onMoveCategory={(id, direction) => moveCatalogOrder('category', id, direction)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} installer={installer} onInstall={installApp} homeMetrics={homeMetrics} onToggleHomeMetric={toggleHomeMetric} onMoveHomeMetric={reorderHomeMetric} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
+    {statsOpen && <StatsDialog ledger={ledger} accounts={allAccounts} categoryDefinitions={categoryDefinitions} onClose={() => setStatsOpen(false)} onEdit={record => setEditing(record)} onSettings={() => setSettingsOpen(true)} />}{settingsOpen && <SettingsDialog catalog={catalog} accountUsage={accountUsage} categoryUsage={categoryUsage} isEmpty={transactions.length === 0} driveConfigured={Boolean(CLIENT_ID)} autoSyncEnabled={Boolean(preferences.autoDriveSync)} backgroundSyncState={backgroundSyncState} onClose={() => setSettingsOpen(false)} onAddAccount={addAccount} onRenameAccount={renameAccount} onHideAccount={id => setAccountHidden(id, true)} onRestoreAccount={id => setAccountHidden(id, false)} onDeleteAccount={deleteAccount} onMoveAccount={(id, direction) => moveCatalogOrder('account', id, direction)} onAddCategory={addCategory} onUpdateCategory={updateCategory} onHideCategory={id => setCategoryHidden(id, true)} onRestoreCategory={id => setCategoryHidden(id, false)} onDeleteCategory={deleteCategory} onMoveCategory={(id, direction) => moveCatalogOrder('category', id, direction)} onBackup={() => downloadJson(backupPayload())} onRestoreFile={restoreLocalBackup} onSync={syncDrive} syncing={syncing} lastSynced={preferences.lastDriveSync} installer={installer} onInstall={installApp} updateReady={update} checkingUpdate={checkingUpdate} onCheckUpdate={runUpdateCheck} homeMetrics={homeMetrics} onToggleHomeMetric={toggleHomeMetric} onMoveHomeMetric={reorderHomeMetric} />}{editing && <EditDialog record={editing} accounts={accounts} categories={categories} onClose={() => setEditing(null)} onSave={saveEditedTransaction} onDelete={deleteTransaction} />}
     {notice && <div className="toast" onAnimationEnd={() => setNotice('')}>{notice}</div>}
   </main>;
 }

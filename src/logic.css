@@ -153,7 +153,7 @@
 .metric-choices { min-height: 0; display: flex; flex-wrap: wrap; align-content: start; gap: 7px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #44474a transparent; }
 .metric-choices button { min-height: 34px; padding: 6px 12px; border: 1px solid #3f4244; border-radius: 9px; background: transparent; color: #b8bcbe; font-size: 11px; font-weight: 650; }
 .metric-choices button:hover { border-color: #55585b; color: #e6e8e9; }
-.sync-settings { grid-template-rows: auto auto auto auto; align-content: start; overflow-y: auto; overscroll-behavior: contain; }
+.sync-settings { grid-template-rows: auto auto auto auto auto; align-content: start; overflow-y: auto; overscroll-behavior: contain; }
 .settings-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px; border: 1px solid #333638; border-radius: 16px; background: #1b1c1e; }
 .settings-card strong, .settings-card small { display: block; }
 .settings-card strong { margin-bottom: 5px; font-size: 14px; }
