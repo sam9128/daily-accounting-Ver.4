@@ -390,7 +390,14 @@
   .quick-form .primary { min-height: 56px; }
 }
 
-/* Keep the horizontal rail compact like the desktop category buttons. */
+/* Match category tiles to the reason field while keeping content-sized widths. */
+.quick-form { --category-tile-height: 44px; }
+@media (max-width: 640px) {
+  .quick-form { --category-tile-height: 52px; }
+}
+@media (max-width: 370px) {
+  .quick-form { --category-tile-height: 48px; }
+}
 .quick-form.category-display-tiles .category-field { display: none; }
 .quick-form.category-display-tiles .quick-categories { display: grid; }
 .quick-form.category-display-tiles .quick-categories > div {
@@ -405,11 +412,11 @@
 .quick-form.category-display-tiles .quick-categories > div::-webkit-scrollbar { display: none; }
 .quick-form.category-display-tiles .quick-categories button {
   flex: 0 0 auto;
-  min-width: 34px;
-  height: 34px;
-  padding: 5px 12px;
+  min-width: var(--category-tile-height);
+  height: var(--category-tile-height);
+  padding: 10px 13px;
   border: 1px solid #303030;
-  border-radius: 10px;
+  border-radius: 11px;
   background: #191919;
   color: var(--muted);
   font-size: 16px;
