@@ -85,7 +85,15 @@ function QuickTransactionForm({ accounts, categories, preferences, selectedAccou
     <label>日期<input name="date" type="date" value={form.date} onChange={change} required /></label>
     <label>帳戶<select name="account" value={form.account} onChange={change}>{accounts.map(account => <option key={account}>{account}</option>)}</select></label>
     <label className="wide category-field">分類項目<select name="category" value={form.category} onChange={change}>{categories.map(category => <option key={category}>{category}</option>)}</select></label>
-    <div className="quick-categories"><span>分類項目</span><div>{categories.map(category => <button type="button" aria-pressed={form.category === category} className={form.category === category ? 'active' : ''} key={category} onClick={() => setForm(current => ({ ...current, category }))}>{category}</button>)}</div></div>
+    <div className="quick-categories"><span>分類項目</span><div>{categories.map(category => <button type="button" aria-pressed={form.category === category} className={form.category === category ? 'active' : ''} key={category} onClick={event => {
+      setForm(current => ({ ...current, category }));
+      if (preferences.categoryDisplay !== 'tiles') return;
+      const button = event.currentTarget;
+      const rail = button.parentElement;
+      const buttonBox = button.getBoundingClientRect();
+      const railBox = rail.getBoundingClientRect();
+      rail.scrollTo({ left: rail.scrollLeft + buttonBox.left - railBox.left - (rail.clientWidth - buttonBox.width) / 2, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    }}>{category}</button>)}</div></div>
     <label className="wide reason-field">原因<input name="reason" value={form.reason} onChange={change} onKeyDown={advanceToAmount} enterKeyHint="next" placeholder="原因備註" /></label>
     <label className="expense">支出 AMOUNT<input ref={expenseRef} name="expense" inputMode="decimal" type="number" min="0" step="any" value={form.expense} onChange={change} onKeyDown={submitOnEnter} enterKeyHint="send" placeholder="− 0" /></label>
     <label className="income">收入 AMOUNT<input name="income" inputMode="decimal" type="number" min="0" step="any" value={form.income} onChange={change} onKeyDown={submitOnEnter} enterKeyHint="send" placeholder="＋ 0" /></label>

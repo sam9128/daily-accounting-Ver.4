@@ -411,9 +411,9 @@
   border-radius: 10px;
   background: #191919;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 16px;
   overflow-wrap: anywhere;
-  scroll-snap-align: start;
+  scroll-snap-align: center;
 }
 .quick-form.category-display-tiles .quick-categories button.active {
   color: var(--text);
