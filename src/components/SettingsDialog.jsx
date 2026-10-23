@@ -188,7 +188,13 @@ export default function SettingsDialog(props) {
       <div className="settings-body">
         {section === 'home' && <HomeSection metrics={props.homeMetrics} onToggle={props.onToggleHomeMetric} onMove={props.onMoveHomeMetric} />}
         {section === 'accounts' && <CatalogSection type="account" items={props.catalog.accounts} usage={props.accountUsage} onAdd={props.onAddAccount} onEdit={beginEdit} onHide={props.onHideAccount} onRestore={props.onRestoreAccount} onDelete={props.onDeleteAccount} onMove={props.onMoveAccount} />}
-        {section === 'categories' && <CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onDelete={props.onDeleteCategory} onMove={props.onMoveCategory} />}
+        {section === 'categories' && <><article className="settings-card category-display-setting">
+          <div><strong>分類項目顯示方式</strong><small>選擇新增交易時的分類樣式，方塊列可左右滑動。</small></div>
+          <div className="category-display-options" role="group" aria-label="分類項目顯示方式">
+            <button type="button" aria-pressed={props.categoryDisplay === 'default'} onClick={() => props.onCategoryDisplayChange('default')}>原本樣式</button>
+            <button type="button" aria-pressed={props.categoryDisplay === 'tiles'} onClick={() => props.onCategoryDisplayChange('tiles')}>方塊列</button>
+          </div>
+        </article><CatalogSection type="category" items={props.catalog.categories} usage={props.categoryUsage} onAdd={props.onAddCategory} onEdit={beginEdit} onHide={props.onHideCategory} onRestore={props.onRestoreCategory} onDelete={props.onDeleteCategory} onMove={props.onMoveCategory} /></>}
         {section === 'sync' && <SyncSection {...props} />}
       </div>
     </div>

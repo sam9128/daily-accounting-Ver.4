@@ -389,3 +389,50 @@
   }
   .quick-form .primary { min-height: 56px; }
 }
+
+/* Optional category rail uses the same card dimensions as the mobile accounts. */
+.quick-form.category-display-tiles .category-field { display: none; }
+.quick-form.category-display-tiles .quick-categories { display: grid; }
+.quick-form.category-display-tiles .quick-categories > div {
+  display: flex;
+  gap: 9px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 1px 1px 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.quick-form.category-display-tiles .quick-categories button {
+  flex: 0 0 84px;
+  height: 84px;
+  padding: 10px;
+  border: 1px solid #303030;
+  border-radius: 16px;
+  background: #191919;
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  scroll-snap-align: start;
+}
+.quick-form.category-display-tiles .quick-categories button.active {
+  color: var(--text);
+  border-color: #58a6ff;
+  box-shadow: inset 0 0 0 1px #58a6ff;
+}
+.category-display-options { display: flex; gap: 8px; }
+.category-display-options button {
+  flex: 1;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid #494d50;
+  border-radius: 11px;
+  background: #202224;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.category-display-options button[aria-pressed="true"] {
+  border-color: #58a6ff;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px #58a6ff;
+}
+.category-display-setting { margin-bottom: 18px; }
