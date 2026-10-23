@@ -390,12 +390,12 @@
   .quick-form .primary { min-height: 56px; }
 }
 
-/* Optional category rail uses the same card dimensions as the mobile accounts. */
+/* Keep the horizontal rail compact like the desktop category buttons. */
 .quick-form.category-display-tiles .category-field { display: none; }
 .quick-form.category-display-tiles .quick-categories { display: grid; }
 .quick-form.category-display-tiles .quick-categories > div {
   display: flex;
-  gap: 9px;
+  gap: 7px;
   min-width: 0;
   overflow-x: auto;
   padding: 1px 1px 4px;
@@ -403,14 +403,15 @@
   scrollbar-width: thin;
 }
 .quick-form.category-display-tiles .quick-categories button {
-  flex: 0 0 84px;
-  height: 84px;
-  padding: 10px;
+  flex: 0 0 calc((100% - 42px) / 7);
+  min-width: 34px;
+  height: 34px;
+  padding: 5px;
   border: 1px solid #303030;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #191919;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 11px;
   overflow-wrap: anywhere;
   scroll-snap-align: start;
 }
